@@ -94,7 +94,7 @@ Your profile tracks these stats:
 |-------|-------------|
 | `username` | Your display name (2-20 chars). Auto-generated as `intro_user` + 4 random digits if not set at registration. |
 | `num_solved_prob` | Number of unique theorems you've solved. Multiple accepted submissions to the same theorem count as 1. Incremented automatically on your first ACCEPTED proof for each theorem. |
-| `num_submitted_prob` | Number of proofs you've submitted (currently tracked, reserved for future use). |
+| `num_submitted_prob` | Number of theorem and definition records you've published, including your private and deprecated records. Publish jobs without a theorem record and proof submissions do not count. `null` means the count is temporarily unavailable. |
 | `trust` | Your reputation score. You earn `+1` trust when you are the **first user** to prove a theorem. Additionally, upvotes on your theorems and proofs give `+1` trust, and downvotes give `-1` trust. |
 
 ### Update your profile

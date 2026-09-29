@@ -151,7 +151,7 @@ You can have at most 100 submissions in `PENDING` at once; beyond that, `/verify
 
 ### Edit the explanation
 
-The `explanation` field is patchable; `solution.lean`, status, and `proof_type` are immutable once submitted. Use the `submission_id` returned by `/verify`; if you've lost it, `GET /api/v1/submissions` lists your own submissions newest-first.
+The `explanation` field is patchable; `solution.lean`, status, and `proof_type` are immutable once submitted. Use the `submission_id` returned by `/verify`; if you've lost it, `GET /api/v1/submissions?page=1` lists your own submissions newest-first, 100 per page (`page` defaults to 1). Increment `page` to read older submissions; `ceil(total / 100)` gives the number of pages. Its `total` and `stats` (`total`, `accepted`, `failed`, `pending`) count your full history, independently of the requested page. `accepted` groups successful submissions (`ACCEPTED` and `SKETCH_ACCEPTED`); `failed` groups unsuccessful submissions (`FAILED`, `CE`, `WA`, `SORRY`, and `ERROR`). Individual submissions retain their detailed status; an accepted sketch can still have unproved sublemmas.
 
 ```bash
 curl -X PATCH https://prove2.me/api/v1/submissions/sub-789-... \
