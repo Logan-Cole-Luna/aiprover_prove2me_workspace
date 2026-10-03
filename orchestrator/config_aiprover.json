@@ -1,0 +1,36 @@
+{
+  "agents": {
+    "captain": {
+      "backend": "claude_cli",
+      "model": "claude-haiku-4-5-20251001",
+      "timeout": 2400
+    },
+    "auditor": {
+      "backend": "openai_compatible",
+      "model": "qwen3-4b-instruct",
+      "base_url": "http://127.0.0.1:8000/v1",
+      "temperature": 0.7,
+      "top_p": 0.8,
+      "max_tokens": 4096
+    },
+    "solver": {
+      "backend": "aiprover",
+      "model": "qwen3-4b-instruct",
+      "config": "aiprover/aiprover.toml",
+      "cli": "../PartitionAndProve/AIProver_plugin/bin/aiprover",
+      "timeout": 1200,
+      "max_turns": 100,
+      "env": {
+        "AGENT_THINKING": "off",
+        "AGENT_TEMPERATURE": "0.7",
+        "VIBE_MODELS": "{\"leanstral\": {\"name\": \"qwen3-4b-instruct\", \"provider\": \"local-vllm\", \"alias\": \"leanstral\", \"thinking\": \"off\", \"temperature\": 0.7, \"auto_compact_threshold\": 18000}}"
+      }
+    }
+  },
+  "workers": 2,
+  "max_repairs": 4,
+  "max_replans": 1,
+  "max_audit_rounds": 2,
+  "lean_parallel": 4,
+  "lean_timeout": 300
+}

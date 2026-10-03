@@ -1,0 +1,13 @@
+{
+  "agents": {
+    "captain": {"backend": "claude_cli", "model": "claude-sonnet-5"},
+    "auditor": {"backend": "claude_cli", "model": "claude-haiku-4-5-20251001"},
+    "solver":  {"backend": "claude_cli", "model": "claude-haiku-4-5-20251001"}
+  },
+  "workers": 4,
+  "max_repairs": 4,
+  "max_replans": 2,
+  "max_audit_rounds": 2,
+  "lean_parallel": 6,
+  "lean_timeout": 300
+}

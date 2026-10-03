@@ -1,0 +1,96 @@
+{
+  "run_id": "smoke_000004",
+  "uuid": "JiatuBook_BoundedArithmetic_000004",
+  "slug": "bounding_ite_base",
+  "config": {
+    "orchestrator_model": "claude-sonnet-5",
+    "worker_model": "claude-haiku-4-5-20251001",
+    "effort": "",
+    "workers": 4,
+    "max_repairs": 4,
+    "max_replans": 2,
+    "max_audit_rounds": 2,
+    "lean_parallel": 6,
+    "lean_timeout": 300,
+    "cli_timeout": 900
+  },
+  "status": "proved",
+  "formalization": {
+    "definitions": "namespace PV\n\n/-- Terms of Cook's theory `PV` over the sort of finite Boolean strings:\nvariables, the empty string `\u03b5`, the two successors `s\u2080, s\u2081`, concatenation\n`\u2218`, smash `#`, trim-right `TR` and iterated trim `ITR`. -/\ninductive Term : Type\n  | var : \u2115 \u2192 Term\n  | eps : Term\n  | s0 : Term \u2192 Term\n  | s1 : Term \u2192 Term\n  | concat : Term \u2192 Term \u2192 Term\n  | smash : Term \u2192 Term \u2192 Term\n  | TR : Term \u2192 Term\n  | ITR : Term \u2192 Term \u2192 Term\n\nopen Term\n\n/-- Simultaneous substitution of variables by terms. -/\ndef subst (\u03c3 : \u2115 \u2192 Term) : Term \u2192 Term\n  | var n => \u03c3 n\n  | eps => eps\n  | s0 t => s0 (subst \u03c3 t)\n  | s1 t => s1 (subst \u03c3 t)\n  | concat t1 t2 => concat (subst \u03c3 t1) (subst \u03c3 t2)\n  | smash t1 t2 => smash (subst \u03c3 t1) (subst \u03c3 t2)\n  | TR t => TR (subst \u03c3 t)\n  | ITR t1 t2 => ITR (subst \u03c3 t1) (subst \u03c3 t2)\n\n/-- Substitute a single variable `n` by the term `t` inside `u`. -/\ndef substOne (n : \u2115) (t : Term) (u : Term) : Term :=\n  subst (fun m => if m = n then t else var m) u\n\n/-- The equational derivability relation `PV \u22a2 t\u2081 = t\u2082`. It captures the\nlogical rules (L0) reflexivity, (L1) symmetry, (L2) transitivity,\n(L3) congruence, (L4) substitution, the defining axioms of the base\nfunctions, and the structural-induction rule. In the induction rule,\n`var 0` plays the role of the recursion variable `y`, `var 1` plays the\nrole of the recursive-call variable `z` occurring in `h_i`, and all other\nvariables uniformly play the role of the parameter tuple `x` (they are\nleft untouched by the two designated substitutions). -/\ninductive Deriv : Term \u2192 Term \u2192 Prop\n  | refl (t : Term) : Deriv t t\n  | symm {t1 t2} : Deriv t1 t2 \u2192 Deriv t2 t1\n  | trans {t1 t2 t3} : Deriv t1 t2 \u2192 Deriv t2 t3 \u2192 Deriv t1 t3\n  | congr_s0 {t1 t2} : Deriv t1 t2 \u2192 Deriv (s0 t1) (s0 t2)\n  | congr_s1 {t1 t2} : Deriv t1 t2 \u2192 Deriv (s1 t1) (s1 t2)\n  | congr_concat {t1 t2 t3 t4} : Deriv t1 t2 \u2192 Deriv t3 t4 \u2192\n      Deriv (concat t1 t3) (concat t2 t4)\n  | congr_smash {t1 t2 t3 t4} : Deriv t1 t2 \u2192 Deriv t3 t4 \u2192\n      Deriv (smash t1 t3) (smash t2 t4)\n  | congr_TR {t1 t2} : Deriv t1 t2 \u2192 Deriv (TR t1) (TR t2)\n  | congr_ITR {t1 t2 t3 t4} : Deriv t1 t2 \u2192 Deriv t3 t4 \u2192\n      Deriv (ITR t1 t3) (ITR t2 t4)\n  | substRule {t1 t2} (\u03c3 : \u2115 \u2192 Term) : Deriv t1 t2 \u2192\n      Deriv (subst \u03c3 t1) (subst \u03c3 t2)\n  | ax_concat_eps : Deriv (concat (var 0) eps) (var 0)\n  | ax_concat_s0 : Deriv (concat (var 0) (s0 (var 1))) (s0 (concat (var 0) (var 1)))\n  | ax_concat_s1 : Deriv (concat (var 0) (s1 (var 1))) (s1 (concat (var 0) (var 1)))\n  | ax_TR_eps : Deriv (TR eps) eps\n  | ax_TR_s0 : Deriv (TR (s0 (var 0))) (var 0)\n  | ax_TR_s1 : Deriv (TR (s1 (var 0))) (var 0)\n  | ax_ITR_eps : Deriv (ITR (var 0) eps) (var 0)\n  | ax_ITR_s0 : Deriv (ITR (var 0) (s0 (var 1))) (TR (ITR (var 0) (var 1)))\n  | ax_ITR_s1 : Deriv (ITR (var 0) (s1 (var 1))) (TR (ITR (var 0) (var 1)))\n  | ax_smash_eps : Deriv (smash (var 0) eps) eps\n  | ax_smash_s0 : Deriv (smash (var 0) (s0 (var 1))) (concat (var 0) (smash (var 0) (var 1)))\n  | ax_smash_s1 : Deriv (smash (var 0) (s1 (var 1))) (concat (var 0) (smash (var 0) (var 1)))\n  | ind {p q g h0 h1 : Term} :\n      Deriv (substOne 0 eps p) g \u2192\n      Deriv (substOne 0 eps q) g \u2192\n      Deriv (substOne 0 (s0 (var 0)) p) (substOne 1 p h0) \u2192\n      Deriv (substOne 0 (s1 (var 0)) p) (substOne 1 p h1) \u2192\n      Deriv (substOne 0 (s0 (var 0)) q) (substOne 1 q h0) \u2192\n      Deriv (substOne 0 (s1 (var 0)) q) (substOne 1 q h1) \u2192\n      Deriv p q\n\n/-- The function `f\u2081(x,y) := ITR(\u03b5, x \u2218 y)`, introduced by composition from\n`ITR`, the constant `\u03b5`, and concatenation, as used in this part of the\nproof (it is the function whose base case `f\u2081(z,\u03b5) = \u03b5` is established\nhere). -/\ndef f1 (x y : Term) : Term := ITR eps (concat x y)\n\nend PV",
+    "preamble": "open PV PV.Term",
+    "theorem_name": "bounding_ite_base",
+    "signature": " : \u2200 z : Term, Deriv (f1 z eps) eps ",
+    "notes": "The term algebra of $\\{0,1\\}^*$ (variables, $\\eps$, $s_0,s_1$, $\\circ$, $\\#$, $\\TR$, $\\ITR$) is encoded by the inductive type `Term`, and the defining axioms $x\\circ\\eps=x$, $x\\circ s_i(y)=s_i(x\\circ y)$, $\\TR(\\eps)=\\eps$, $\\TR(s_i(x))=x$, $\\ITR(x,\\eps)=x$, $\\ITR(x,s_i(y))=\\TR(\\ITR(x,y))$, $x\\#\\eps=\\eps$, $x\\#s_i(y)=x\\circ(x\\#y)$ become the `ax_*` constructors of `Deriv`, using `var 0`/`var 1` as schematic variables that are later instantiated via the substitution rule `substRule`. The logical apparatus (L0)\u2013(L4) is given by `refl`, `symm`, `trans`, the `congr_*` constructors (one per function symbol) and `substRule`, using the generic simultaneous substitution operator `subst`/`substOne`. The structural-induction rule of the source (`f_j(\\vec x,\\eps)=g(\\vec x)$ and $f_j(\\vec x,s_i(y))=h_i(\\vec x,y,f_j(\\vec x,y))$ for $j=1,2$ imply $f_1=f_2$) is the `ind` constructor, where `var 0` stands for the induction variable $y$, `var 1` for the recursive-value variable $z$ occurring inside $h_i$, and all remaining free variables uniformly stand for the untouched parameter tuple $\\vec x$. The specific function $f_1$ used in this proposition, introduced by composition as $\\ITR(\\eps, x\\circ y)$ (matching the informal proof's identification of $f_1(z,\\eps)$ with $\\ITR(\\eps,z\\circ\\eps)$), is given by the definition `f1`. Finally, `PV \u22a2 f_1(z,\\eps)=\\eps$` is rendered as `\u2200 z : Term, Deriv (f1 z eps) eps`, universally quantifying over the free variable $z$ of the source equation, as is standard for equations in an equational calculus with a substitution rule.",
+    "readback": "For every term $z$, the following equation is derivable in Cook's theory $\\text{PV}$:\n\n$$\\text{ITR}(\\varepsilon, z \\circ \\varepsilon) = \\varepsilon$$\n\nwhere $\\varepsilon$ is the empty string, $\\circ$ denotes concatenation, and $\\text{ITR}$ is the iterated trim operation. Derivability is the inductive relation $\\text{Deriv}(t_1, t_2)$, defined through reflexivity, symmetry, transitivity, congruence for each operator, substitution, the defining axioms of the base functions, and the structural-induction rule.",
+    "verdict": "FAITHFUL",
+    "issues": "None. The `Deriv` relation correctly encodes the logical rules (L0)\u2013(L4), the defining axioms of `\u2218`, `TR`, `ITR`, `#`, and the structural-induction rule (with `var 0` uniformly playing the role of the recursion variable `y` and `var 1` the role of the recursive-call slot `z`, matching the source's schema with two base-case/two recursive-case premises for `j=1,2`). The definition `f1 x y := ITR eps (concat x y)` matches exactly the term the informal proof itself reduces the goal to (`ITR(\u03b5, z\u2218\u03b5) = \u03b5`), so the Lean goal `Deriv (f1 z eps) eps` is definitionally the same equation as `f\u2081(z,\u03b5) = \u03b5` unfolded, consistent with what the source proof establishes. Universally quantifying over `z : Term` is equivalent to (and derivable from) the free-variable formulation in the source via the substitution rule (L4), so no strengthening or weakening occurs. The readback accurately reflects what the Lean statement asserts."
+  },
+  "checks": {
+    "compiles": true,
+    "no_sorry": true,
+    "standard_axioms_only": true,
+    "axioms": [
+      "propext"
+    ],
+    "errors": [],
+    "module_build": true,
+    "statement_matches": true,
+    "verified": true
+  },
+  "sketch": {
+    "main_proof": "intro z\nunfold f1\nexact Deriv.trans (Deriv.congr_ITR (Deriv.refl eps) (concat_eps_subst z)) (ITR_eps_subst z)",
+    "lemmas": [
+      {
+        "name": "concat_eps_subst",
+        "statement": "theorem concat_eps_subst (z : Term) : Deriv (concat z eps) z",
+        "helpers": "",
+        "proof": "exact Deriv.substRule (fun n => if n = 0 then z else var n) Deriv.ax_concat_eps",
+        "proved": true,
+        "last_errors": "/home/logan-luna/workspace/orchestration/temp/smoke_000004/0005_concat_eps_subst_w1_r0.lean:91:8: error(lean.unknownIdentifier): Unknown identifier `substRule`"
+      },
+      {
+        "name": "ITR_eps_var_eps",
+        "statement": "theorem ITR_eps_var_eps : Deriv (ITR eps (var 0)) eps",
+        "helpers": "",
+        "proof": "refine @Deriv.ind (ITR eps (var 0)) eps eps (TR (var 1)) (TR (var 1)) ?_ ?_ ?_ ?_ ?_ ?_\n\u00b7 -- Base case for p: Deriv (ITR eps eps) eps\n  exact Deriv.substRule (fun m => if m = 0 then eps else var m) Deriv.ax_ITR_eps\n\u00b7 -- Base case for q: Deriv eps eps\n  exact Deriv.refl eps\n\u00b7 -- Recursive s0 for p: Deriv (ITR eps (s0 (var 0))) (TR (ITR eps (var 0)))\n  have h : Deriv (ITR eps (s0 (var 1))) (TR (ITR eps (var 1))) := \n    Deriv.substRule (fun m => if m = 0 then eps else var m) Deriv.ax_ITR_s0\n  exact Deriv.substRule (fun m => if m = 1 then var 0 else var m) h\n\u00b7 -- Recursive s1 for p: Deriv (ITR eps (s1 (var 0))) (TR (ITR eps (var 0)))\n  have h : Deriv (ITR eps (s1 (var 1))) (TR (ITR eps (var 1))) := \n    Deriv.substRule (fun m => if m = 0 then eps else var m) Deriv.ax_ITR_s1\n  exact Deriv.substRule (fun m => if m = 1 then var 0 else var m) h\n\u00b7 -- Recursive s0 for q: Deriv eps (TR eps)\n  exact Deriv.symm Deriv.ax_TR_eps\n\u00b7 -- Recursive s1 for q: Deriv eps (TR eps)\n  exact Deriv.symm Deriv.ax_TR_eps",
+        "proved": true,
+        "last_errors": "/home/logan-luna/workspace/orchestration/temp/smoke_000004/0019_ITR_eps_var_eps_w2_r1.lean:94:10: error(lean.unknownIdentifier): Unknown identifier `substRule`\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0019_ITR_eps_var_eps_w2_r1.lean:95:10: error: failed to synthesize\n  IsRefl Term Deriv\n\nHint: Additional diagnostic information may be available using the `set_option diagnostics true` command.\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0019_ITR_eps_var_eps_w2_r1.lean:96:10: error(lean.unknownIdentifier): Unknown identifier `substRule`\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0019_ITR_eps_var_eps_w2_r1.lean:97:10: error(lean.unknownIdentifier): Unknown identifier `substRule`\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0019_ITR_eps_var_eps_w2_r1.lean:98:15: error(lean.unknownIdentifier): Unknown identifier `ax_TR_eps`\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0019_ITR_eps_var_eps_w2_r1.lean:98:10: error: failed to synthesize\n  IsSymm Term Deriv\n\nHint: Additional diagnostic information may be available using the `set_option diagnostics true` command.\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0019_ITR_eps_var_eps_w2_r1.lean:99:15: error(lean.unknownIdentifier): Unknown identifier `ax_TR_eps`\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0019_ITR_eps_var_eps_w2_r1.lean:99:10: error: failed to synthesize\n  IsSymm Term Deriv\n\nHint: Additional diagnostic information may be available using the `set_option diagnostics true` command.\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0019_ITR_eps_var_eps_w2_r1.lean:92:57: error: unsolved goals\ncase h0\n\u22a2 Term\n\ncase h1\n\u22a2 Term"
+      },
+      {
+        "name": "ITR_eps_subst",
+        "statement": "theorem ITR_eps_subst (z : Term) : Deriv (ITR eps z) eps",
+        "helpers": "",
+        "proof": "have h := Deriv.substRule (fun n => if n = 0 then z else var n) ITR_eps_var_eps\nsimp only [subst] at h\nexact h",
+        "proved": true,
+        "last_errors": "/home/logan-luna/workspace/orchestration/temp/smoke_000004/0013_ITR_eps_subst_w0_r0.lean:105:8: error: Application type mismatch: The argument\n  Deriv.substRule (fun n => if n = 0 then eps else if n = 1 then var 0 else var n) Deriv.ax_ITR_s0\nhas type\n  Deriv (subst (fun n => if n = 0 then eps else if n = 1 then var 0 else var n) ((var 0).ITR (var 1).s0))\n    (subst (fun n => if n = 0 then eps else if n = 1 then var 0 else var n) ((var 0).ITR (var 1)).TR)\nbut is expected to have type\n  Deriv (substOne 0 (var 0).s0 (eps.ITR (var 0))) (substOne 1 (eps.ITR (var 0)) ?m.7)\nin the application\n  Deriv.ind (Deriv.substRule (fun x => eps) Deriv.ax_ITR_eps) (Deriv.refl eps)\n    (Deriv.substRule (fun n => if n = 0 then eps else if n = 1 then var 0 else var n) Deriv.ax_ITR_s0)\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0013_ITR_eps_subst_w0_r0.lean:107:20: error: Application type mismatch: The argument\n  Deriv.ax_TR_eps\nhas type\n  Deriv eps.TR eps\nbut is expected to have type\n  Deriv (substOne 1 eps ?m.7) (substOne 0 (var 0).s0 eps)\nin the application\n  Deriv.symm Deriv.ax_TR_eps\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0013_ITR_eps_subst_w0_r0.lean:108:20: error: Application type mismatch: The argument\n  Deriv.ax_TR_eps\nhas type\n  Deriv eps.TR eps\nbut is expected to have type\n  Deriv (substOne 1 eps ?m.8) (substOne 0 (var 0).s1 eps)\nin the application\n  Deriv.symm Deriv.ax_TR_eps\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0013_ITR_eps_subst_w0_r0.lean:100:60: error: unsolved goals\nz : Term\n\u22a2 Deriv (eps.ITR z) eps\n\n/home/logan-luna/workspace/orchestration/temp/smoke_000004/0013_ITR_eps_subst_w0_r0.lean:110:4: error: unexpected token 'let'; expected command"
+      }
+    ]
+  },
+  "wall_seconds": 787.4,
+  "phase_seconds": {
+    "formalize": 354.7,
+    "sketch": 48.0,
+    "prove": 376.9,
+    "assemble": 7.8
+  },
+  "calls_by_role": {
+    "captain": 3,
+    "auditor": 1,
+    "solver": 19
+  },
+  "usage_by_model": {
+    "claude-haiku-4-5-20251001": {
+      "input_tokens": 123638,
+      "output_tokens": 261492,
+      "cache_read_tokens": 0,
+      "cost_usd": 1.4310980000000002
+    },
+    "claude-sonnet-5": {
+      "input_tokens": 6,
+      "output_tokens": 36540,
+      "cache_read_tokens": 1998,
+      "cost_usd": 0.5954874000000001
+    }
+  },
+  "lean_attempt_files": 22
+}

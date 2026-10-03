@@ -1,0 +1,18 @@
+{
+  "agents": {
+    "captain": {"backend": "claude_cli", "model": "claude-sonnet-5",
+                "timeout": 2400},
+    "auditor": {"backend": "openai_compatible", "model": "qwen3-4b-instruct",
+                "base_url": "http://127.0.0.1:8000/v1",
+                "temperature": 0.7, "top_p": 0.8, "max_tokens": 4096},
+    "solver":  {"backend": "openai_compatible", "model": "qwen3-4b-instruct",
+                "base_url": "http://127.0.0.1:8000/v1",
+                "temperature": 0.7, "top_p": 0.8, "max_tokens": 4096}
+  },
+  "workers": 4,
+  "max_repairs": 4,
+  "max_replans": 2,
+  "max_audit_rounds": 2,
+  "lean_parallel": 6,
+  "lean_timeout": 300
+}

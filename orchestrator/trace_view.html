@@ -1,0 +1,600 @@
+<title>__PAGE_TITLE__</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/*TRACE_COMMON_CSS*/
+</style>
+
+<header class="topbar">
+  <span class="thm" id="thm"></span>
+  <span class="run" id="run"></span>
+  <span id="status"></span>
+  <span class="spacer"></span>
+  <span class="run" id="models"></span>
+  <a class="btn" href="trace_graph.html">Graph view</a>
+  <a class="btn" href="trace_replay.html">Replay</a>
+</header>
+
+<div class="frame">
+  <nav class="chapters" id="chapters" aria-label="Chapters"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+
+<footer class="stepper">
+  <button class="btn" id="prev" type="button">← Previous</button>
+  <span class="where" id="where"></span>
+  <button class="btn primary" id="next" type="button">Next →</button>
+</footer>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Step detail">
+  <div class="drawer-head" id="drawer-head"></div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script>
+const TRACE = /*TRACE_DATA*/null;
+
+// Templates carry no trace; the generator embeds one. Opened directly, a
+// template explains where the rendered pages are instead of failing silently.
+if (!TRACE) {
+  document.body.innerHTML = `<main style="padding:48px 24px;max-width:62ch;font:16px/1.6 system-ui,sans-serif">
+    <h1 style="font-size:1.4rem">No run data in this file</h1>
+    <p>This is a page template. The rendered pages for each run are in
+    <code>results/&lt;run_id&gt;/</code>: <code>trace.html</code>, <code>trace_graph.html</code>
+    and <code>trace_replay.html</code>. Generate them with</p>
+    <pre style="background:#eef0f4;padding:10px 12px;border-radius:6px">python3 -m orchestrator.trace_view results/&lt;run_id&gt;/trace.json</pre>
+  </main>`;
+  throw new Error("No trace embedded: this file is a template.");
+}
+
+
+/*TRACE_COMMON_JS*/
+
+// Chapters ------------------------------------------------------------------------
+
+function chapterOverview() {
+  const phases = outcome.phase_seconds || {};
+  const phaseTotal = sum(Object.values(phases)) || 1;
+  const phaseNames = Object.keys(phases);
+  const verified = outcome.checks?.verified;
+  const roles = ["captain", "auditor", "solver"];
+  return `
+  <div class="eyebrow">Run ${escapeHTML(TRACE.run_id)} · ${escapeHTML(TRACE.started || "")}</div>
+  <h2>Orchestrated formal proof of <code>${escapeHTML(TRACE.theorem_name)}</code></h2>
+  <p class="lead">This page reconstructs one run of a multi-model Lean 4 proving pipeline.
+  An orchestrator model, the <span class="role captain">captain</span>, translates an informal
+  mathematical result into Lean, has the translation checked by a blind
+  <span class="role auditor">auditor</span>, splits the proof into lemmas, and delegates each
+  lemma to several parallel <span class="role solver">solver</span> models. The
+  <span class="role lean">Lean</span> compiler checks every piece of code; a result is accepted
+  only when Lean accepts it.</p>
+  <div class="stats">
+    <div class="stat"><span class="v">${verified ? "Proved" : escapeHTML(outcome.status || "running")}</span><span class="k">${verified ? "all final checks pass" : "final status"}</span></div>
+    <div class="stat"><span class="v">${formatDuration(outcome.wall_seconds || steps.at(-1)?.elapsed_seconds || 0)}</span><span class="k">wall-clock time</span></div>
+    <div class="stat"><span class="v">${calls.length}</span><span class="k">model calls (${roles.map(r => callsByRole(r).length).join(" / ")} captain / auditor / solver)</span></div>
+    <div class="stat"><span class="v">${checks.length}</span><span class="k">Lean checks</span></div>
+    <div class="stat"><span class="v">${formatUSD(totalCost)}</span><span class="k">notional API cost</span></div>
+  </div>
+  ${phaseNames.length ? `
+  <div class="panel">
+    <h3>Time per phase</h3>
+    <div class="phasebar">${phaseNames.map(p => `<div class="ph-${p}" style="width:${(phases[p] / phaseTotal * 100).toFixed(2)}%">${phases[p] / phaseTotal > 0.12 ? p : ""}</div>`).join("")}</div>
+    <div class="phaselegend">${phaseNames.map(p => `<span><i class="ph-${p}"></i>${p} ${formatDuration(phases[p])}</span>`).join("")}</div>
+  </div>` : ""}
+  <div class="panel">
+    <h3>Models</h3>
+    <table class="kv">
+      <tr><th>Role</th><th>Model</th><th>Calls</th><th>Output tokens</th><th>Cost</th></tr>
+      ${roles.map(r => {
+        const list = callsByRole(r);
+        return `<tr><td><span class="role ${r}">${r}</span></td><td class="num">${escapeHTML(list[0]?.model || (r === "captain" ? TRACE.models?.orchestrator : TRACE.models?.worker))}</td>
+          <td class="num">${list.length}</td><td class="num">${sum(list.map(c => c.usage?.outputTokens)).toLocaleString()}</td><td class="num">${formatUSD(sum(list.map(c => c.cost_usd)))}</td></tr>`;
+      }).join("")}
+    </table>
+  </div>
+  <div class="panel">
+    <h3>Reading this page</h3>
+    <p>The chapters follow the pipeline in order. Use <b>Next</b>, the chapter list, or the
+    <kbd>←</kbd>/<kbd>→</kbd> keys. Every item marked with a step number such as ${stepLink(steps[0])}
+    opens the complete record of that step: the exact prompt, the model's reply, the Lean source and
+    compiler output. Inside a step record, <kbd>←</kbd>/<kbd>→</kbd> move through the run one step at a time.</p>
+  </div>
+  <div class="panel">
+    <h3>Terms</h3>
+    <dl class="gloss">
+      <dt>Lean 4</dt><dd>A programming language and proof assistant. A proof written in Lean is checked mechanically by its kernel; if it compiles, it is correct relative to the stated theorem.</dd>
+      <dt>Mathlib</dt><dd>The community library of formalized mathematics for Lean.</dd>
+      <dt>sorry</dt><dd>A placeholder that closes any goal without proof. Lean accepts it with a warning. The pipeline uses it for statements whose proofs are pending, and the final solution must contain none.</dd>
+      <dt>axioms</dt><dd>Foundational assumptions a proof depends on. Only <code>propext</code>, <code>Classical.choice</code> and <code>Quot.sound</code> are admitted.</dd>
+      <dt>read-back</dt><dd>A natural-language account of what a piece of Lean code literally asserts, written without knowledge of what it was meant to assert.</dd>
+      <dt>faithful</dt><dd>A formal statement is faithful when it asserts exactly the source result: neither weaker, stronger, nor vacuous.</dd>
+    </dl>
+  </div>`;
+}
+
+function chapterProblem() {
+  return `
+  <div class="eyebrow">Input</div>
+  <h2>The problem</h2>
+  <p class="lead">The run starts from an informal result taken from a textbook dataset: a statement
+  with its setting, and the informal proof from the source. No Lean code is given.</p>
+  <table class="kv">
+    <tr><th>Field</th><th>Value</th></tr>
+    <tr><td>Dataset</td><td class="num">${escapeHTML(problem.source_name)} / ${escapeHTML(problem.source_subset)}</td></tr>
+    <tr><td>Problem id</td><td class="num">${escapeHTML(problem.uuid)}</td></tr>
+    <tr><td>Source file</td><td class="num" style="white-space:normal">${escapeHTML(problem.raw_source_path)}</td></tr>
+    <tr><td>Lean theorem name</td><td class="num">${escapeHTML(TRACE.theorem_name)}</td></tr>
+  </table>
+  <div class="panel">
+    <h3>Informal statement</h3>
+    <div class="prose">${mathHTML(problem.informal_statement || "")}</div>
+  </div>
+  <div class="panel">
+    <h3>Informal proof</h3>
+    <div class="prose">${mathHTML(problem.informal_proof || "")}</div>
+  </div>
+  <p class="note">The statement is given to the captain for formalization and judging. The
+  informal proof guides the captain's decomposition and is passed to every solver. The auditor
+  never sees either.</p>`;
+}
+
+// Vertical flow chart of the pipeline; nodes open the matching algorithm entry.
+const FLOW_NODES = [
+  { id: "problem", title: "Informal problem", actor: "dataset", tone: "data", algorithm: null, chapter: "problem" },
+  { id: "formalize", title: "Formalize", actor: "captain", tone: "captain", algorithm: 0, chapter: "formalize" },
+  { id: "audit", title: "Blind read-back", actor: "auditor", tone: "auditor", algorithm: 1, chapter: "audit" },
+  { id: "judge", title: "Faithfulness verdict", actor: "captain", tone: "captain", algorithm: 2, chapter: "audit" },
+  { id: "sketch", title: "Proof sketch", actor: "captain", tone: "captain", algorithm: 3, chapter: "sketch" },
+  { id: "prove", title: "Prove lemmas", actor: "solvers, in parallel", tone: "solver", algorithm: 4, chapter: "prove" },
+  { id: "assemble", title: "Assemble and verify", actor: "Lean", tone: "lean", algorithm: 6, chapter: "assemble" },
+];
+
+function flowCounts(id) {
+  const n = {
+    formalize: [callsByRole("captain").filter(c => /^formalize/.test(c.label)).length, checks.filter(k => k.label === "formalize").length],
+    audit: [callsByRole("auditor").length, 0],
+    judge: [callsByRole("captain").filter(c => /^judge/.test(c.label)).length, 0],
+    sketch: [callsByRole("captain").filter(c => /^sketch/.test(c.label)).length, checks.filter(k => k.label === "sketch").length],
+    prove: [callsByRole("solver").length, checks.filter(k => k.lemma != null).length],
+    assemble: [0, checks.filter(k => k.stage === "assemble").length],
+  }[id];
+  if (!n) return "";
+  return [n[0] ? plural(n[0], "call") : "", n[1] ? plural(n[1], "check") : ""].filter(Boolean).join(" · ");
+}
+
+function flowSVG() {
+  const x = 190, w = 260, h = 74, gap = 30, cx = x + w / 2;
+  const y = i => 12 + i * (h + gap);
+  const nodes = FLOW_NODES.map((node, i) => `
+    <g class="node" tabindex="0" role="button" data-flow="${node.id}" aria-label="${node.title}">
+      <rect x="${x}" y="${y(i)}" width="${w}" height="${h}" rx="7"></rect>
+      <circle cx="${x + 16}" cy="${y(i) + 20}" r="4.5" class="c-${node.tone}"></circle>
+      <text x="${x + 28}" y="${y(i) + 24}" class="title">${node.title}</text>
+      <text x="${x + 28}" y="${y(i) + 43}" class="actor c-${node.tone}">${node.actor}${node.id === "prove" ? ` ×${cfg.workers ?? "N"} per lemma` : ""}</text>
+      <text x="${x + 28}" y="${y(i) + 61}" class="count">${flowCounts(node.id)}</text>
+    </g>`).join("");
+  const down = FLOW_NODES.slice(0, -1).map((node, i) =>
+    `<path class="edge" d="M${cx},${y(i) + h} V${y(i + 1) - 3}" marker-end="url(#arrow)"></path>`).join("");
+  const selfLoop = (i, label) => `
+    <path class="edge loop" d="M${x},${y(i) + 22} C${x - 52},${y(i) + 22} ${x - 52},${y(i) + 52} ${x - 3},${y(i) + 52}" marker-end="url(#arrow)"></path>
+    <text x="${x - 50}" y="${y(i) + 41}" text-anchor="end" class="elabel">${label}</text>`;
+  const backEdge = (from, to, label, id) => `
+    <path class="edge loop" d="M${x + w},${y(from) + h / 2} H${x + w + 70} V${y(to) + h / 2} H${x + w + 3}" marker-end="url(#arrow)"></path>
+    <text x="${x + w + 76}" y="${(y(from) + y(to)) / 2 + h / 2 + 4}" class="elabel${id ? " hot" : ""}"${id ? ` data-flow="${id}" tabindex="0" role="button"` : ""}>${label}</text>`;
+  const height = y(FLOW_NODES.length) - gap + 14;
+  return `<svg class="flow" viewBox="0 0 640 ${height}" role="img" aria-label="Pipeline flow chart">
+    <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" class="arrowhead"></path></marker></defs>
+    ${down}
+    ${selfLoop(1, "Lean errors")}
+    ${selfLoop(4, "Lean errors")}
+    ${selfLoop(5, "Lean errors, per chain")}
+    ${backEdge(3, 1, "REVISE")}
+    ${backEdge(5, 4, "replan", "replan")}
+    <text x="${cx + 8}" y="${y(4) - 10}" class="elabel">FAITHFUL</text>
+    ${nodes}
+  </svg>`;
+}
+
+const BUDGETS = [
+  ["workers", "Independent solver chains launched per lemma."],
+  ["max_repairs", "Lean-feedback repair rounds per chain, after the first attempt. Also bounds formalization and sketch repairs."],
+  ["max_audit_rounds", "Formalization revisions allowed after a REVISE verdict."],
+  ["max_replans", "Sketch revisions allowed after a lemma fails."],
+  ["lean_parallel", "Lean checks run concurrently."],
+  ["lean_timeout", "Seconds allowed per Lean check."],
+  ["cli_timeout", "Seconds allowed per model call."],
+];
+
+function chapterAlgorithm() {
+  return `
+  <div class="eyebrow">Method</div>
+  <h2>The orchestration algorithm</h2>
+  <p class="lead">The pipeline separates judgement from labour. The stronger orchestrator model
+  handles the steps where an error propagates to everything downstream: the formal statement and
+  the proof plan. Cheaper worker models perform many independent proof attempts. Lean arbitrates
+  every attempt, so no model output is trusted without compilation.</p>
+  <div class="algo">
+    <div class="diagram-wrap">${flowSVG()}</div>
+    <div class="panel" id="flow-detail" aria-live="polite"></div>
+  </div>
+  <div class="panel">
+    <h3>Budgets for this run</h3>
+    <div class="table-wrap" style="border:0">
+    <table class="kv">
+      <tr><th>Parameter</th><th>Value</th><th>Meaning</th></tr>
+      ${BUDGETS.filter(([k]) => k in cfg).map(([k, text]) => `<tr><td class="num">${k}</td><td class="num">${cfg[k]}</td><td>${text}</td></tr>`).join("")}
+    </table></div>
+  </div>
+  <div class="panel">
+    <h3>Lean environment</h3>
+    <table class="kv">
+      <tr><td>Toolchain</td><td class="num">${escapeHTML(TRACE.lean_environment?.toolchain)}</td></tr>
+      <tr><td>Mathlib commit</td><td class="num" style="white-space:normal">${escapeHTML(TRACE.lean_environment?.mathlib)}</td></tr>
+    </table>
+    ${leanHTML(TRACE.lean_environment?.file_header || "")}
+  </div>`;
+}
+
+function showFlowDetail(id) {
+  const node = FLOW_NODES.find(n => n.id === id);
+  const algorithm = TRACE.algorithm || [];
+  const entry = id === "replan" ? algorithm[5] : node && node.algorithm != null ? algorithm[node.algorithm] : null;
+  const panel = document.getElementById("flow-detail");
+  if (!panel) return;
+  document.querySelectorAll("svg.flow .node").forEach(g => g.classList.toggle("sel", g.dataset.flow === id));
+  const chapter = id === "replan" ? "sketch" : node.chapter;
+  panel.innerHTML = id === "problem"
+    ? `<span class="eyebrow">Input</span><h3>Informal problem</h3>
+       <p>A statement and informal proof from the dataset. See the problem chapter.</p>
+       <div><button class="btn" type="button" data-goto="problem">Open chapter</button></div>`
+    : `<span class="eyebrow">${escapeHTML(entry?.stage || "")}</span>
+       <h3>${id === "replan" ? "Replan" : node.title}</h3>
+       <div class="muted">${escapeHTML(entry?.actor || "")}</div>
+       <p>${inlineCode(entry?.description || "")}</p>
+       <div><button class="btn" type="button" data-goto="${chapter}">Open chapter</button></div>`;
+}
+
+const TEMPLATE_USE = {
+  FORMALIZE_TEMPLATE: ["captain", "Formalize: first attempt"],
+  FORMALIZE_FEEDBACK_TEMPLATE: ["captain", "Formalize: repair after Lean errors or a REVISE verdict"],
+  AUDITOR_TEMPLATE: ["auditor", "Audit: the Lean code to read back"],
+  JUDGE_READBACK_TEMPLATE: ["captain", "Audit: compare read-back and source"],
+  SKETCH_TEMPLATE: ["captain", "Sketch: decompose the proof"],
+  SKETCH_REPAIR_TEMPLATE: ["captain", "Sketch: repair after Lean errors"],
+  REPLAN_FEEDBACK_TEMPLATE: ["captain", "Sketch: revise after failed lemmas"],
+  SOLVER_TEMPLATE: ["solver", "Prove: first attempt at a lemma"],
+  SOLVER_REPAIR_TEMPLATE: ["solver", "Prove: repair after Lean errors"],
+};
+
+function chapterPrompts() {
+  const system = TRACE.system_prompts || {};
+  const templates = TRACE.prompt_templates || {};
+  const order = Object.keys(TEMPLATE_USE).filter(k => k in templates)
+    .concat(Object.keys(templates).filter(k => !(k in TEMPLATE_USE)));
+  return `
+  <div class="eyebrow">Method</div>
+  <h2>Roles and prompts</h2>
+  <p class="lead">Each model call consists of a fixed system prompt for the role and a message built
+  from a template. Replies use XML-style tags such as <code>&lt;definitions&gt;</code> or
+  <code>&lt;proof&gt;</code>, which the orchestrator parses and places into Lean files.</p>
+  <div class="panel">
+    <h3>Roles</h3>
+    <table class="kv">
+      <tr><th>Role</th><th>Model</th><th>Task</th></tr>
+      <tr><td><span class="role captain">captain</span></td><td class="num">${escapeHTML(TRACE.models?.orchestrator)}</td><td>Formalizes the statement, judges the read-back, writes and revises the proof sketch.</td></tr>
+      <tr><td><span class="role auditor">auditor</span></td><td class="num">${escapeHTML(TRACE.models?.worker)}</td><td>Reads the Lean code blind and states what it asserts.</td></tr>
+      <tr><td><span class="role solver">solver</span></td><td class="num">${escapeHTML(TRACE.models?.worker)}</td><td>Proves one lemma, repairing its proof from Lean error messages.</td></tr>
+    </table>
+  </div>
+  <h3>System prompts</h3>
+  ${Object.entries(system).map(([role, text]) => `
+    <details class="fold"><summary><span class="role ${role}">${role}</span><span class="muted">${text.length.toLocaleString()} characters</span></summary>
+      <div class="body">${markdownHTML(text)}</div></details>`).join("")}
+  <h3>Message templates</h3>
+  <p class="muted">Placeholders in <span class="placeholder">{braces}</span> are filled from the problem and from earlier steps.</p>
+  ${order.map(name => {
+    const [role, use] = TEMPLATE_USE[name] || ["decision", ""];
+    return `<details class="fold"><summary><span class="mono">${name}</span><span class="role ${role}">${role}</span><span class="muted">${escapeHTML(use)}</span></summary>
+      <div class="body">${templateHTML(templates[name])}</div></details>`;
+  }).join("")}`;
+}
+
+function chapterFormalize() {
+  const stageSteps = steps.filter(s => s.stage === "formalize" && !(s.role === "auditor" || /^judge/.test(s.label || "") || s.event === "audit_verdict"));
+  const compiled = eventsOf("formalization_compiled");
+  const form = compiled.at(-1);
+  const rejected = eventsOf("formalization_rejected");
+  return `
+  <div class="eyebrow">Stage 1 · captain</div>
+  <h2>Formalization</h2>
+  <p class="lead">The captain writes Lean definitions for every object in the setting and a theorem
+  statement whose proof is left as <code>sorry</code>. The file is compiled; on errors the
+  compiler output is returned to the captain for up to ${cfg.max_repairs ?? "N"} repairs. At this stage only
+  the statement must be correct, not the proof.</p>
+  ${stepList(stageSteps)}
+  ${rejected.length ? `<p class="note">${plural(rejected.length, "formalization attempt")} failed to compile and ${rejected.length === 1 ? "was" : "were"} repaired.</p>` : ""}
+  ${form ? `
+  <div class="panel">
+    <h3>Theorem statement</h3>
+    ${leanHTML(form.statement || "")}
+    <p class="muted">Preamble: <code>${escapeHTML(form.preamble || "")}</code></p>
+  </div>
+  <div class="panel">
+    <h3>Captain's notes on the encoding</h3>
+    <div class="prose">${mathHTML(form.notes || "")}</div>
+  </div>
+  <details class="fold"><summary><b>Definitions</b><span class="muted">${(form.definitions || "").split("\n").length} lines of Lean</span></summary>
+    <div class="body">${leanHTML(form.definitions || "", new Set(), "tall")}</div></details>` : ""}`;
+}
+
+function chapterAudit() {
+  const auditSteps = steps.filter(s => s.role === "auditor" || /^judge/.test(s.label || "") || s.event === "audit_verdict");
+  const verdicts = eventsOf("audit_verdict");
+  return `
+  <div class="eyebrow">Stage 2 · auditor, then captain</div>
+  <h2>Blind audit</h2>
+  <p class="lead">A formal statement can compile and still say something different from the source:
+  a missing hypothesis, a vacuous case, or a weaker theorem. To detect this, a separate auditor
+  receives only the Lean code and the auditor playbook, never the source, and writes a read-back of
+  what the code asserts. The captain then compares the read-back with the source statement. A
+  <b>FAITHFUL</b> verdict continues to the sketch; <b>REVISE</b> returns to formalization
+  (at most ${cfg.max_audit_rounds ?? "N"} times).</p>
+  ${stepList(auditSteps)}
+  ${verdicts.map(v => `
+  <div class="two">
+    <div class="panel">
+      <span class="eyebrow">Source statement · seen by captain only</span>
+      <div class="prose">${mathHTML(propositionText())}</div>
+    </div>
+    <div class="panel">
+      <span class="eyebrow">Read-back · round ${v.round} · written blind</span>
+      <div class="prose">${mathHTML(v.readback || "")}</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3>Verdict</h3>${stepResult(v)} ${stepLink(v)}</div>
+    <div class="prose">${mathHTML(v.issues || "")}</div>
+  </div>`).join("")}`;
+}
+
+function chapterSketch() {
+  const sketchSteps = steps.filter(s => s.stage === "sketch");
+  const replans = eventsOf("replan");
+  return `
+  <div class="eyebrow">Stage 3 · captain</div>
+  <h2>Proof sketch</h2>
+  <p class="lead">The captain decomposes the proof into lemmas. Each lemma is stated in full but
+  proved only by <code>sorry</code>; the main theorem is then proved from the lemmas without
+  <code>sorry</code>. Lean compiles the sketch, which confirms that the lemmas suffice for the
+  theorem before any lemma is attempted.</p>
+  ${stepList(sketchSteps)}
+  ${replans.length ? `<p class="note">${plural(replans.length, "revision")} of the sketch followed lemmas that were not proved within budget. Proved lemmas with unchanged statements were reused.</p>` : ""}
+  ${finalSketch ? `
+  <div class="panel">
+    <h3>Main proof, from the lemmas</h3>
+    ${leanHTML(finalSketch.main_proof || "")}
+    <p class="muted">Uses: ${lemmaUses(finalSketch.main_proof, null).map(n => `<code>${escapeHTML(n)}</code>`).join(", ") || "no lemma by name"}</p>
+  </div>
+  <h3>Lemmas</h3>
+  ${(finalSketch.lemmas || []).map(statement => {
+    const name = lemmaName(statement);
+    const win = lemmaWins.get(name);
+    const uses = lemmaUses(win?.proof, name);
+    return `<div class="panel lemma">
+      <div class="head"><span class="name">${escapeHTML(name)}</span>
+        ${win ? `<span class="pill ok">proved by solver ${win.worker}, round ${win.round}</span> ${stepLink(win)}` : `<span class="pill fail">not proved</span>`}</div>
+      ${leanHTML(statement + " := by sorry")}
+      ${uses.length ? `<p class="muted">Its proof uses ${uses.map(n => `<code>${escapeHTML(n)}</code>`).join(", ")}, available as an earlier lemma.</p>` : ""}
+    </div>`;
+  }).join("")}` : ""}`;
+}
+
+function gantt() {
+  const solverCalls = calls.filter(c => c.lemma != null);
+  if (!solverCalls.length) return `<p class="muted">No solver calls in this run.</p>`;
+  const endOf = c => checkOfCall.get(c.index)?.elapsed_seconds ?? c.elapsed_seconds;
+  const t0 = Math.min(...solverCalls.map(c => c.elapsed_seconds - (c.seconds || 0)));
+  const t1 = Math.max(...solverCalls.map(endOf));
+  const span = Math.max(1, t1 - t0);
+  const pos = t => `${((t - t0) / span * 100).toFixed(3)}%`;
+  const step = [15, 30, 60, 120, 300, 600, 1200].find(s => span / s <= 8) || 1800;
+  const ticks = [];
+  for (let t = Math.ceil(t0 / step) * step; t <= t1; t += step) ticks.push(t);
+  const workers = [...new Set(solverCalls.map(c => c.worker))].sort((a, b) => a - b);
+
+  const groups = lemmaOrder.filter(name => solverCalls.some(c => c.lemma === name)).map(name => {
+    const win = lemmaWins.get(name);
+    const winLine = win ? `<span class="winline" style="left:${pos(win.elapsed_seconds)}"></span>` : "";
+    const rows = workers.map(worker => {
+      const bars = solverCalls.filter(c => c.lemma === name && c.worker === worker).map(c => {
+        const { state } = solverOutcome(c);
+        const start = c.elapsed_seconds - (c.seconds || 0);
+        const width = (endOf(c) - start) / span * 100;
+        const tip = `${name} · solver ${worker} · round ${c.round} · ${formatDuration(c.seconds || 0)} · ${state}`;
+        return `<button class="bar ${state}" type="button" data-step="${c.index}" title="${escapeHTML(tip)}" style="left:${pos(start)};width:${width.toFixed(3)}%">r${c.round}</button>`;
+      }).join("");
+      return `<div class="g-row"><span class="lab">solver ${worker}</span><div class="g-track">${winLine}${bars}</div></div>`;
+    }).join("");
+    const attempts = solverCalls.filter(c => c.lemma === name).length;
+    return `<div class="g-group"><div class="gh"><span class="name">${escapeHTML(name)}</span>
+      ${win ? `<span class="pill ok">proved at ${formatClock(win.elapsed_seconds)}</span>` : `<span class="pill fail">not proved</span>`}
+      <span class="muted" style="font-size:0.8rem">${plural(attempts, "attempt")}</span></div>${rows}</div>`;
+  }).join("");
+
+  return `<div class="gantt-wrap"><div class="gantt">
+    ${groups}
+    <div class="g-row"><span class="lab">elapsed</span><div class="g-axis">${ticks.map(t => `<span style="left:${pos(t)}">${formatClock(t)}</span>`).join("")}</div></div>
+  </div></div>
+  <div class="legend">
+    <span><i class="sw bar win" style="position:static"></i>proof kept</span>
+    <span><i class="sw bar ok" style="position:static"></i>compiled, not needed</span>
+    <span><i class="sw bar fail" style="position:static"></i>Lean errors, repaired in next round</span>
+    <span><i class="sw bar late" style="position:static"></i>finished after the lemma was proved; discarded</span>
+    <span><i class="sw" style="border-left:2px solid var(--ok);width:4px;border-radius:0"></i>lemma proved</span>
+  </div>`;
+}
+
+function chapterProve() {
+  const solverCalls = calls.filter(c => c.lemma != null);
+  const outcomes = solverCalls.map(solverOutcome);
+  const count = state => outcomes.filter(o => o.state === state).length;
+  const firstTry = [...lemmaWins.values()].filter(w => w.round === 0).length;
+  return `
+  <div class="eyebrow">Stage 4 · solvers</div>
+  <h2>Parallel proving</h2>
+  <p class="lead">For each lemma, ${cfg.workers ?? "N"} solver chains start at the same time. A chain
+  proposes a proof; Lean compiles it together with the definitions and the earlier lemmas. On
+  failure the compiler errors are sent back and the chain tries again, for at most
+  ${(cfg.max_repairs ?? 0) + 1} attempts. The first proof that compiles is kept, and the other chains stop.
+  Calls already in progress at that moment still finish, but their results are discarded.</p>
+  <div class="stats">
+    <div class="stat"><span class="v">${solverCalls.length}</span><span class="k">solver calls</span></div>
+    <div class="stat"><span class="v">${lemmaWins.size} / ${lemmaOrder.length}</span><span class="k">lemmas proved</span></div>
+    <div class="stat"><span class="v">${firstTry}</span><span class="k">proved at the first attempt (round 0)</span></div>
+    <div class="stat"><span class="v">${count("fail")}</span><span class="k">attempts with Lean errors</span></div>
+    <div class="stat"><span class="v">${count("late")}</span><span class="k">discarded after a win</span></div>
+  </div>
+  <div class="panel">
+    <h3>Solver timeline</h3>
+    <p class="muted">Each bar is one model call, from request to Lean result, labelled with its repair round. Select a bar to read the prompt, reply and compiler output.</p>
+  </div>
+  ${gantt()}
+  <details class="fold"><summary><b>All solver steps</b><span class="muted">${plural(solverCalls.length, "call")}, with their Lean checks and decisions</span></summary>
+    <div class="body">${stepList(steps.filter(s => s.stage === "prove"))}</div></details>
+  <h3>Kept proofs</h3>
+  ${[...lemmaWins.values()].map(w => `
+    <div class="panel lemma">
+      <div class="head"><span class="name">${escapeHTML(w.lemma)}</span><span class="muted">solver ${w.worker}, round ${w.round}</span>${stepLink(w)}</div>
+      ${w.helpers ? leanHTML(w.helpers) : ""}
+      ${leanHTML(w.proof || "")}
+    </div>`).join("")}`;
+}
+
+const CHECK_TEXT = {
+  compiles: "The standalone file with definitions, lemmas and solution compiles.",
+  no_sorry: "No sorry placeholder remains.",
+  standard_axioms_only: "The solution depends only on propext, Classical.choice and Quot.sound.",
+  module_build: "The Definitions, Theorems and Solutions modules build in the Lean project.",
+  statement_matches: "A module importing both the theorem and the solution checks that the solution's type equals the audited theorem statement.",
+  verified: "All checks above hold.",
+};
+
+function chapterAssemble() {
+  const final = eventsOf("final_verification").at(-1);
+  const checkSteps = steps.filter(s => s.stage === "assemble");
+  const result = final?.checks || outcome.checks || {};
+  return `
+  <div class="eyebrow">Stage 5 · Lean</div>
+  <h2>Assembly and verification</h2>
+  <p class="lead">The kept lemma proofs replace the <code>sorry</code> placeholders in the sketch,
+  producing one standalone file. The file must satisfy every check below. The last check guards
+  against a solution that proves a different statement from the one that passed the audit.</p>
+  ${stepList(checkSteps)}
+  <div class="checks">
+    ${Object.keys(CHECK_TEXT).filter(k => k in result).map(k => `
+      <div class="check"><span class="mark ${result[k] ? "ok" : "fail"}">${result[k] ? "✓" : "✗"}</span>
+        <span class="name">${k}</span><span class="desc">${CHECK_TEXT[k]}</span></div>`).join("")}
+  </div>
+  ${result.axioms ? `<p>Axioms reported by <code>#print axioms solution</code>: ${result.axioms.map(a => `<code>${escapeHTML(a)}</code>`).join(", ") || "none"}.</p>` : ""}
+  ${final?.solution ? `
+  <details class="fold" open><summary><b>Final solution file</b><span class="muted">${final.solution.split("\n").length} lines of Lean</span></summary>
+    <div class="body">${leanHTML(final.solution, new Set(), "tall")}</div></details>` : ""}`;
+}
+
+let logFilter = { kind: "all", stage: "all" };
+
+function chapterLog() {
+  const kinds = ["all", "model_call", "lean_check", "decision"];
+  const stages = ["all", ...new Set(steps.map(s => s.stage))];
+  const label = { all: "All", model_call: "Model calls", lean_check: "Lean checks", decision: "Decisions" };
+  return `
+  <div class="eyebrow">Reference</div>
+  <h2>Complete step log</h2>
+  <p class="lead">Every recorded step in order. Times are elapsed since the start of the run; model
+  calls are recorded when their reply arrives.</p>
+  <div class="filters" role="group" aria-label="Filter by kind">${kinds.map(k => `<button class="chip" type="button" data-filter-kind="${k}" aria-pressed="${logFilter.kind === k}">${label[k]}</button>`).join("")}</div>
+  <div class="filters" role="group" aria-label="Filter by stage">${stages.map(s => `<button class="chip" type="button" data-filter-stage="${s}" aria-pressed="${logFilter.stage === s}">${s === "all" ? "All stages" : s}</button>`).join("")}</div>
+  ${stepList(steps.filter(s => (logFilter.kind === "all" || s.kind === logFilter.kind) && (logFilter.stage === "all" || s.stage === logFilter.stage)))}`;
+}
+
+const CHAPTERS = [
+  { id: "overview", title: "Overview", render: chapterOverview },
+  { id: "problem", title: "The problem", render: chapterProblem },
+  { id: "algorithm", title: "Algorithm", render: chapterAlgorithm, after: () => showFlowDetail("formalize") },
+  { id: "prompts", title: "Roles and prompts", render: chapterPrompts },
+  { id: "formalize", title: "Formalization", render: chapterFormalize },
+  { id: "audit", title: "Blind audit", render: chapterAudit },
+  { id: "sketch", title: "Proof sketch", render: chapterSketch },
+  { id: "prove", title: "Parallel proving", render: chapterProve },
+  { id: "assemble", title: "Verification", render: chapterAssemble },
+  { id: "log", title: "Step log", render: chapterLog },
+];
+
+// Navigation ---------------------------------------------------------------------------
+
+let current = 0;
+
+function showChapter(index, focus = true) {
+  current = Math.max(0, Math.min(CHAPTERS.length - 1, index));
+  const chapter = CHAPTERS[current];
+  const main = document.getElementById("main");
+  main.innerHTML = `<section class="chapter">${chapter.render()}</section>`;
+  chapter.after?.();
+  document.querySelectorAll("#chapters button").forEach((b, i) => {
+    if (i === current) b.setAttribute("aria-current", "step");
+    else b.removeAttribute("aria-current");
+  });
+  document.querySelector("#chapters button[aria-current]")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  document.getElementById("prev").disabled = current === 0;
+  document.getElementById("next").disabled = current === CHAPTERS.length - 1;
+  document.getElementById("next").textContent = current < CHAPTERS.length - 1 ? `${CHAPTERS[current + 1].title} →` : "End";
+  document.getElementById("where").textContent = `${current + 1} of ${CHAPTERS.length}`;
+  try { history.replaceState(null, "", "#" + chapter.id); } catch (error) { /* sandboxed frames may refuse */ }
+  if (focus) {
+    window.scrollTo({ top: 0 });
+    main.focus({ preventScroll: true });
+  }
+}
+
+function init() {
+  renderHeader();
+  document.getElementById("chapters").innerHTML = CHAPTERS.map((c, i) =>
+    `<button type="button" data-chapter="${i}"><span class="n">${String(i + 1).padStart(2, "0")}</span><span>${c.title}</span></button>`).join("");
+
+  installDrawerHandlers();
+  document.addEventListener("click", event => {
+    const target = event.target.closest("[data-chapter],[data-goto],[data-flow],[data-filter-kind],[data-filter-stage]");
+    if (!target) return;
+    const d = target.dataset;
+    if (d.chapter !== undefined) showChapter(Number(d.chapter));
+    else if (d.goto) { closeStep(); showChapter(CHAPTERS.findIndex(c => c.id === d.goto)); }
+    else if (d.flow) showFlowDetail(d.flow);
+    else if (d.filterKind) { logFilter.kind = d.filterKind; showChapter(current, false); }
+    else if (d.filterStage) { logFilter.stage = d.filterStage; showChapter(current, false); }
+  });
+  document.addEventListener("keydown", event => {
+    if (drawerOpen || event.target.closest?.("input, textarea, select")) return;
+    if ((event.key === "Enter" || event.key === " ") && event.target.matches?.("svg [data-flow]")) {
+      event.preventDefault();
+      showFlowDetail(event.target.dataset.flow);
+      return;
+    }
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.key === "ArrowRight") showChapter(current + 1);
+    else if (event.key === "ArrowLeft") showChapter(current - 1);
+  });
+  document.getElementById("prev").addEventListener("click", () => showChapter(current - 1));
+  document.getElementById("next").addEventListener("click", () => showChapter(current + 1));
+
+  const fromHash = CHAPTERS.findIndex(c => "#" + c.id === location.hash);
+  showChapter(fromHash >= 0 ? fromHash : 0, false);
+}
+
+init();
+</script>

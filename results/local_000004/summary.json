@@ -1,0 +1,88 @@
+{
+  "run_id": "local_000004",
+  "uuid": "JiatuBook_BoundedArithmetic_000004",
+  "slug": "bounding_ite_base",
+  "config": {
+    "agents": {
+      "captain": {
+        "backend": "claude_cli",
+        "model": "claude-sonnet-5"
+      },
+      "auditor": {
+        "backend": "openai_compatible",
+        "model": "qwen3-4b-instruct",
+        "base_url": "http://127.0.0.1:8000/v1",
+        "temperature": 0.7,
+        "top_p": 0.8,
+        "max_tokens": 4096
+      },
+      "solver": {
+        "backend": "openai_compatible",
+        "model": "qwen3-4b-instruct",
+        "base_url": "http://127.0.0.1:8000/v1",
+        "temperature": 0.7,
+        "top_p": 0.8,
+        "max_tokens": 4096
+      }
+    },
+    "workers": 4,
+    "max_repairs": 4,
+    "max_replans": 2,
+    "max_audit_rounds": 2,
+    "lean_parallel": 6,
+    "lean_timeout": 300
+  },
+  "status": "lemmas_unproved",
+  "formalization": {
+    "definitions": "namespace PVTerm\n\n/-- Terms of Cook's equational theory PV over the sort of finite Boolean strings.\n`var n` are the free variables (playing the role of the object variables `x, y, z, ...`\nof PV), `eps` is the empty string, `s0`/`s1` are the two successors, `circ` is\nconcatenation, `smash` is `#`, `TR` is trim-right and `ITR` is iterated trim. -/\ninductive Term : Type\n  | var : \u2115 \u2192 Term\n  | eps : Term\n  | s0 : Term \u2192 Term\n  | s1 : Term \u2192 Term\n  | circ : Term \u2192 Term \u2192 Term\n  | smash : Term \u2192 Term \u2192 Term\n  | TR : Term \u2192 Term\n  | ITR : Term \u2192 Term \u2192 Term\n\n/-- Substitution of a term `r` for a variable `x` inside a term. -/\ndef subst : Term \u2192 \u2115 \u2192 Term \u2192 Term\n  | Term.var m, x, r => if m = x then r else Term.var m\n  | Term.eps, _, _ => Term.eps\n  | Term.s0 t, x, r => Term.s0 (subst t x r)\n  | Term.s1 t, x, r => Term.s1 (subst t x r)\n  | Term.circ t u, x, r => Term.circ (subst t x r) (subst u x r)\n  | Term.smash t u, x, r => Term.smash (subst t x r) (subst u x r)\n  | Term.TR t, x, r => Term.TR (subst t x r)\n  | Term.ITR t u, x, r => Term.ITR (subst t x r) (subst u x r)\n\n/-- Derivability of an equation `t = u` in PV: reflexivity (L0), symmetry (L1),\ntransitivity (L2), congruence for every function symbol (L3), substitution (L4),\nthe defining axioms for `circ`, `TR`, `ITR`, `smash`, and the structural-induction\nrule (for functions `f1, f2` represented as terms with a distinguished recursion\nvariable `yv`, base value `g`, and successor step `h0, h1` with a distinguished\nplaceholder `zv` for the recursive call). -/\ninductive Deriv : Term \u2192 Term \u2192 Prop\n  | refl (t : Term) : Deriv t t\n  | symm {t u : Term} : Deriv t u \u2192 Deriv u t\n  | trans {t u v : Term} : Deriv t u \u2192 Deriv u v \u2192 Deriv t v\n  | congr_s0 {t u : Term} : Deriv t u \u2192 Deriv (Term.s0 t) (Term.s0 u)\n  | congr_s1 {t u : Term} : Deriv t u \u2192 Deriv (Term.s1 t) (Term.s1 u)\n  | congr_circ {t1 t2 u1 u2 : Term} :\n      Deriv t1 u1 \u2192 Deriv t2 u2 \u2192 Deriv (Term.circ t1 t2) (Term.circ u1 u2)\n  | congr_smash {t1 t2 u1 u2 : Term} :\n      Deriv t1 u1 \u2192 Deriv t2 u2 \u2192 Deriv (Term.smash t1 t2) (Term.smash u1 u2)\n  | congr_TR {t u : Term} : Deriv t u \u2192 Deriv (Term.TR t) (Term.TR u)\n  | congr_ITR {t1 t2 u1 u2 : Term} :\n      Deriv t1 u1 \u2192 Deriv t2 u2 \u2192 Deriv (Term.ITR t1 t2) (Term.ITR u1 u2)\n  | substL {t u : Term} (x : \u2115) (r : Term) : Deriv t u \u2192 Deriv (subst t x r) (subst u x r)\n  | ax_circ_eps (t : Term) : Deriv (Term.circ t Term.eps) t\n  | ax_circ_s0 (t u : Term) : Deriv (Term.circ t (Term.s0 u)) (Term.s0 (Term.circ t u))\n  | ax_circ_s1 (t u : Term) : Deriv (Term.circ t (Term.s1 u)) (Term.s1 (Term.circ t u))\n  | ax_TR_eps : Deriv (Term.TR Term.eps) Term.eps\n  | ax_TR_s0 (t : Term) : Deriv (Term.TR (Term.s0 t)) t\n  | ax_TR_s1 (t : Term) : Deriv (Term.TR (Term.s1 t)) t\n  | ax_ITR_eps (t : Term) : Deriv (Term.ITR t Term.eps) t\n  | ax_ITR_s0 (t u : Term) : Deriv (Term.ITR t (Term.s0 u)) (Term.TR (Term.ITR t u))\n  | ax_ITR_s1 (t u : Term) : Deriv (Term.ITR t (Term.s1 u)) (Term.TR (Term.ITR t u))\n  | ax_smash_eps (t : Term) : Deriv (Term.smash t Term.eps) Term.eps\n  | ax_smash_s0 (t u : Term) : Deriv (Term.smash t (Term.s0 u)) (Term.circ t (Term.smash t u))\n  | ax_smash_s1 (t u : Term) : Deriv (Term.smash t (Term.s1 u)) (Term.circ t (Term.smash t u))\n  | induction (yv zv : \u2115) (f1 f2 g h0 h1 : Term) :\n      Deriv (subst f1 yv Term.eps) g \u2192\n      Deriv (subst f1 yv (Term.s0 (Term.var yv))) (subst h0 zv f1) \u2192\n      Deriv (subst f1 yv (Term.s1 (Term.var yv))) (subst h1 zv f1) \u2192\n      Deriv (subst f2 yv Term.eps) g \u2192\n      Deriv (subst f2 yv (Term.s0 (Term.var yv))) (subst h0 zv f2) \u2192\n      Deriv (subst f2 yv (Term.s1 (Term.var yv))) (subst h1 zv f2) \u2192\n      Deriv f1 f2\n\nend PVTerm",
+    "preamble": "open PVTerm",
+    "theorem_name": "bounding_ite_base",
+    "signature": " :\n    Deriv (Term.ITR Term.eps (Term.circ (Term.var 0) Term.eps)) Term.eps ",
+    "notes": "The setting's syntax (constants `eps`, successors `s0, s1`, concatenation `circ`, smash `smash`, trim `TR`, iterated trim `ITR`) is encoded as the inductive type `Term` with variables `var n` standing for the object variables `x, y, z, ...`; `PV \u22a2` is encoded as the inductive relation `Deriv`, whose constructors are exactly (L0)\u2013(L4) (reflexivity, symmetry, transitivity, congruence for each symbol, and substitution `substL`), the six defining axioms for `circ, TR, ITR, smash` (each stated as a universally-instantiated schema, which under `substL` matches the axioms' free-variable form), and the structural-induction rule with distinguished recursion variable `yv`, base value `g`, and successor terms `h0, h1` sharing a placeholder `zv` for the recursive call, matching the source's rule for `f_1, f_2, g, h_i`. The proposition `PV \u22a2 f_1(z,\\eps)=\\eps` is read off from the informal proof, which identifies `f_1(z,\\eps)` with `ITR(\\eps, z\\circ\\eps)`; accordingly the theorem states `Deriv (ITR eps (circ (var 0) eps)) eps`, where `var 0` is the free (universally-instantiable) variable standing for `z`, exactly as in the source's open-term formulation of PV-derivability.",
+    "readback": "Deriv (Term.ITR Term.eps (Term.circ (Term.var 0) Term.eps)) Term.eps holds.  \n\nThis is a specific instance of the derivability relation in the equational theory PV. The term on the left-hand side is constructed as follows:  \n- `Term.eps` is the empty string.  \n- `Term.var 0` is a free variable indexed by 0.  \n- `Term.circ (Term.var 0) Term.eps` denotes the concatenation of the variable `0` with the empty string, which is equal to `Term.var 0` by the axiom `ax_circ_eps`.  \n- Thus, the argument to `Term.ITR` is `Term.circ (Term.var 0) Term.eps`, which simplifies to `Term.var 0`.  \n- The entire left-hand side term is therefore `Term.ITR Term.eps (Term.var 0)`.  \n\nThe right-hand side is `Term.eps`.  \n\nThe theorem asserts that this specific equation \u2014 that `Term.ITR Term.eps (Term.var 0)` is derivable from the axioms of PV \u2014 holds.  \n\nThis instance is not general; it is a concrete case where the iterated trim operation applied to the empty string and a variable (0) yields the empty string. The derivation relies on the axioms of the theory, particularly the axioms governing `ITR` and `circ`, and the structural rules of substitution and congruence. The only hypothesis in this theorem is the type-level context of the `Deriv` relation, which is satisfied by the specific terms involved.  \n\nNote that the quantifiers and logical structure of the `Deriv` relation are fully accounted for: the statement is a single, specific instance of a derivability claim, with no universal or existential quantifiers over variables beyond those explicitly present in the term structure. The value of `0` is fixed, and the variable `0` is not bound in any way outside of its use in the term. The derivation is vacuously dependent on the axioms and does not require any additional assumptions.",
+    "verdict": "FAITHFUL",
+    "issues": "None. The Lean statement `Deriv (Term.ITR Term.eps (Term.circ (Term.var 0) Term.eps)) Term.eps` matches exactly the reduced goal that the informal proof itself identifies as the content to be established for the proposition `PV \u22a2 f\u2081(z,\u03b5) = \u03b5` \u2014 the proof text literally states \"We need to prove in PV that ITR(\u03b5, z\u2218\u03b5) = \u03b5,\" treating this as definitionally/reductively equivalent to the stated proposition (since f\u2081 is a function defined earlier by composition/recursion, not a primitive symbol of the base term grammar formalized here). Representing the free variable `z` as `Term.var 0` is the standard and correct way to encode a universally-quantified equational schema in this term calculus, since the substitution rule (L4) already yields instantiation to arbitrary terms. The order of arguments to `ITR` and `circ` matches the source notation. The `Deriv` inductive correctly encodes (L0)\u2013(L4), the defining axioms for `circ`, `TR`, `ITR`, `smash`, and the structural-induction rule exactly as specified (base case, two successor cases per function, two functions `f1`/`f2` sharing the same `g`, `h0`, `h1`, using substitution to model the recursion variable `y` and the recursive-call placeholder `z`), with no missing or extraneous hypotheses, and no vacuity (the goal is a genuine derivability claim requiring proof). The formalization does not weaken or trivialize the source statement."
+  },
+  "sketch": {
+    "main_proof": "have h1 : Deriv (Term.circ (Term.var 0) Term.eps) (Term.var 0) :=\n  Deriv.ax_circ_eps (Term.var 0)\nhave h2 : Deriv (Term.ITR Term.eps (Term.circ (Term.var 0) Term.eps))\n    (Term.ITR Term.eps (Term.var 0)) :=\n  Deriv.congr_ITR (Deriv.refl Term.eps) h1\nexact Deriv.trans h2 ITR_eps_var_eq_eps",
+    "lemmas": [
+      {
+        "name": "ITR_eps_var_eq_eps",
+        "statement": "theorem ITR_eps_var_eq_eps :\n    Deriv (Term.ITR Term.eps (Term.var 0)) Term.eps",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "/home/logan-luna/workspace/orchestration/temp/local_000004/0053_ITR_eps_var_eq_eps_w3_r4.lean:78:20: error(lean.unknownIdentifier): Unknown constant `PVTerm.Term.induction`\n\n/home/logan-luna/workspace/orchestration/temp/local_000004/0053_ITR_eps_var_eq_eps_w3_r4.lean:131:57: error: unexpected token 'by'; expected '{' or tactic\n\n/home/logan-luna/workspace/orchestration/temp/local_000004/0053_ITR_eps_var_eq_eps_w3_r4.lean:131:55: error: unsolved goals\n\u22a2 Deriv (Term.eps.ITR (Term.var 0)) Term.eps"
+      }
+    ]
+  },
+  "wall_seconds": 963.5,
+  "phase_seconds": {
+    "formalize": 268.2,
+    "sketch": 331.4,
+    "prove": 363.8
+  },
+  "calls_by_role": {
+    "captain": 9,
+    "auditor": 1,
+    "solver": 60
+  },
+  "usage_by_model": {
+    "claude-haiku-4-5-20251001": {
+      "input_tokens": 33513,
+      "output_tokens": 163,
+      "cost_usd": 0.034328
+    },
+    "claude-sonnet-5": {
+      "input_tokens": 18,
+      "output_tokens": 61878,
+      "cost_usd": 1.177854
+    },
+    "qwen3-4b-instruct": {
+      "input_tokens": 160703,
+      "output_tokens": 53013,
+      "cost_usd": 0.0
+    }
+  },
+  "lean_attempt_files": 53
+}

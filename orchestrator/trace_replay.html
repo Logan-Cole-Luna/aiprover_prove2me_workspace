@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>__PAGE_TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/*TRACE_COMMON_CSS*/
+
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; overflow: hidden; }
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+.stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.stage.dragging { cursor: grabbing; }
+.stage svg { width: 100%; height: 100%; display: block; }
+.stage-tools { position: absolute; top: 12px; right: 14px; display: flex; gap: 6px; z-index: 3; }
+.stage-tools .btn { background: var(--surface); font-size: 0.82rem; padding: 4px 10px; }
+.stage-tools .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.stage-tools .btn:disabled { opacity: 0.6; cursor: progress; }
+.export-status {
+  position: absolute; top: 52px; right: 14px; z-index: 3;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 10px; font-size: 0.8rem; color: var(--muted); max-width: 300px;
+}
+.arrowhead { fill: var(--muted); }
+/* Applied while exporting so computed styles are final values, not mid-transition. */
+svg.exporting *, svg.exporting { transition: none !important; animation: none !important; }
+
+/* Narration and event log ------------------------------------------------- */
+.side {
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.narration {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 190px;
+}
+.narration .phase { display: flex; align-items: center; gap: 8px; }
+.narration h3 { font-size: 1.05rem; }
+.narration p { font-size: 0.92rem; color: var(--muted); }
+.log { flex: 1; overflow-y: auto; padding: 6px 0; }
+.log button {
+  display: grid;
+  grid-template-columns: 44px 12px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 5px 16px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.log button:hover { background: var(--surface-2); }
+.log button.past { color: var(--ink); }
+.log button.now { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+.log button.future { opacity: 0.45; }
+.log .t { font-family: var(--font-mono); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
+.log .dot { align-self: center; }
+
+/* Transport ------------------------------------------------------------------- */
+.transport {
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 10px 18px calc(10px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.transport .btn { padding: 5px 12px; }
+.transport .play { min-width: 92px; }
+.transport input[type="range"] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+.transport select { font: inherit; font-size: 0.85rem; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.clock { font-family: var(--font-mono); font-size: 0.82rem; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 12ch; }
+.phases { display: flex; gap: 4px; flex-wrap: wrap; }
+.phases span { font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.phases span.on { background: var(--ink); color: var(--bg); }
+
+/* Graph marks --------------------------------------------------------------------- */
+.rnode { cursor: pointer; transition: opacity 350ms ease; }
+.rnode.hidden { opacity: 0.13; pointer-events: none; }
+.rnode rect.body { fill: var(--surface); stroke: var(--line); stroke-width: 1.4; transition: fill 300ms, stroke 300ms; }
+.rnode text { fill: var(--ink); font-family: var(--font-ui); }
+.rnode .t1 { font-size: 13px; font-weight: 600; }
+.rnode .t1.mono { font-family: var(--font-mono); font-size: 12px; }
+.rnode .t2 { font-size: 11px; fill: var(--muted); }
+.rnode .t3 { font-size: 10.5px; fill: var(--muted); font-family: var(--font-mono); }
+.rnode .progress-track { fill: var(--surface-2); }
+.rnode .progress { fill: var(--accent); }
+.rnode.r-captain rect.body { stroke: var(--captain); }
+.rnode.r-auditor rect.body { stroke: var(--auditor); }
+.rnode.r-solver rect.body { stroke: var(--solver); }
+.rnode.r-lean rect.body { stroke: var(--lean); }
+.rnode.r-captain .progress { fill: var(--captain); }
+.rnode.r-auditor .progress { fill: var(--auditor); }
+.rnode.r-solver .progress { fill: var(--solver); }
+.rnode.r-lean .progress { fill: var(--lean); }
+.rnode .chip-role.r-captain { fill: var(--captain); }
+.rnode .chip-role.r-auditor { fill: var(--auditor); }
+.rnode .chip-role.r-solver { fill: var(--solver); }
+.rnode .chip-role.r-lean { fill: var(--lean); }
+.rnode.root rect.body { stroke-width: 2.2; fill: var(--accent-soft); }
+.rnode.problem rect.body { stroke: var(--muted); stroke-dasharray: 5 3; }
+.rnode.final rect.body { stroke-width: 2.4; }
+.rnode.running rect.body { stroke-width: 2.4; animation: pulse 1.4s ease-in-out infinite; }
+.rnode.compiling rect.body { stroke: var(--lean); stroke-width: 2.4; stroke-dasharray: 6 4; }
+.rnode.s-ok rect.body, .rnode.s-win rect.body { fill: var(--ok-soft); stroke: var(--ok); }
+.rnode.s-win rect.body { stroke-width: 3; }
+.rnode.s-fail rect.body { fill: var(--fail-soft); stroke: var(--fail); }
+.rnode.s-late rect.body { fill: url(#hatch); stroke: var(--muted); stroke-dasharray: 4 3; }
+.rnode.s-late text { fill: var(--muted); }
+.rnode .status.s-ok, .rnode .status.s-win { fill: var(--ok); }
+.rnode .status.s-fail { fill: var(--fail); }
+.rnode .status.s-run { fill: var(--accent); }
+.rnode .status.s-lean { fill: var(--lean); }
+.rnode:hover rect.body, .rnode:focus-visible rect.body { stroke: var(--accent); }
+.rnode:focus { outline: none; }
+@keyframes pulse { 50% { stroke-opacity: 0.35; } }
+#hatch-a { fill: var(--surface); }
+#hatch-b { stroke: var(--line); }
+
+.redge { fill: none; stroke: var(--muted); stroke-width: 1.6; opacity: 0.55; transition: stroke-dashoffset 700ms ease, opacity 300ms; }
+.redge.hidden { opacity: 0; }
+.ghost { fill: none; stroke: var(--line); stroke-width: 1.3; stroke-dasharray: 3 4; }
+.redge.r-captain { stroke: var(--captain); }
+.redge.r-auditor { stroke: var(--auditor); }
+.redge.r-solver { stroke: var(--solver); }
+.redge.r-lean { stroke: var(--lean); }
+.redge.repair { stroke: var(--fail); stroke-width: 1.8; }
+.redge.win { stroke: var(--ok); stroke-width: 2.4; opacity: 0.9; }
+.rlabel { font-size: 10.5px; fill: var(--muted); font-family: var(--font-ui); transition: opacity 300ms; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.rlabel.hidden { opacity: 0; }
+.rlabel.repair { fill: var(--fail); }
+.packet { r: 5; transition: opacity 200ms; }
+.packet.r-captain { fill: var(--captain); }
+.packet.r-auditor { fill: var(--auditor); }
+.packet.r-solver { fill: var(--solver); }
+.packet.r-lean { fill: var(--lean); }
+.packet.r-ok { fill: var(--ok); }
+.band { fill: var(--surface-2); opacity: 0.55; }
+.band-label { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; fill: var(--muted); font-family: var(--font-ui); }
+
+@media (max-width: 860px) {
+  .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 190px; }
+  .side { border-left: 0; border-top: 1px solid var(--line); }
+  .narration { min-height: 0; border-bottom: 0; }
+  .log { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rnode.running rect.body { animation: none; }
+  .redge, .rnode { transition: none; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="thm" id="thm"></span>
+  <span class="run" id="run"></span>
+  <span id="status"></span>
+  <span class="spacer"></span>
+  <span class="run" id="models"></span>
+  <a class="btn" href="trace.html">Walkthrough</a>
+  <a class="btn" href="trace_graph.html">Graph view</a>
+</header>
+
+<div class="workspace">
+  <div class="stage" id="stage">
+    <div class="stage-tools">
+      <button class="btn" type="button" id="follow" aria-pressed="true">Follow</button>
+      <button class="btn" type="button" id="fit">Show all</button>
+      <button class="btn" type="button" id="export">Export JPG</button>
+    </div>
+    <div class="export-status" id="export-status" aria-live="polite" hidden></div>
+    <svg id="graph" aria-label="Orchestration replay">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" class="arrowhead"></path>
+        </marker>
+        <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect id="hatch-a" width="8" height="8"></rect>
+          <line id="hatch-b" x1="0" y1="0" x2="0" y2="8" stroke-width="3"></line>
+        </pattern>
+      </defs>
+      <g id="viewport"></g>
+    </svg>
+  </div>
+  <aside class="side">
+    <div class="narration" aria-live="polite">
+      <div class="phase"><span class="eyebrow" id="phase-name"></span><span class="spacer"></span></div>
+      <h3 id="narration-title"></h3>
+      <p id="narration-text"></p>
+    </div>
+    <div class="log" id="log" aria-label="Events"></div>
+  </aside>
+</div>
+
+<footer class="transport">
+  <button class="btn primary play" type="button" id="play">▶ Play</button>
+  <button class="btn" type="button" id="prev-event" aria-label="Previous event">⏮</button>
+  <button class="btn" type="button" id="next-event" aria-label="Next event">⏭</button>
+  <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Playback position">
+  <span class="clock" id="clock"></span>
+  <label class="muted" for="speed" style="font-size:0.82rem">Speed</label>
+  <select id="speed">
+    <option value="5">5×</option>
+    <option value="15" selected>15×</option>
+    <option value="30">30×</option>
+    <option value="60">60×</option>
+  </select>
+  <div class="phases" id="phases"></div>
+</footer>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Step detail">
+  <div class="drawer-head" id="drawer-head"></div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script>
+const TRACE = /*TRACE_DATA*/null;
+
+// Templates carry no trace; the generator embeds one. Opened directly, a
+// template explains where the rendered pages are instead of failing silently.
+if (!TRACE) {
+  document.body.innerHTML = `<main style="padding:48px 24px;max-width:62ch;font:16px/1.6 system-ui,sans-serif">
+    <h1 style="font-size:1.4rem">No run data in this file</h1>
+    <p>This is a page template. The rendered pages for each run are in
+    <code>results/&lt;run_id&gt;/</code>: <code>trace.html</code>, <code>trace_graph.html</code>
+    and <code>trace_replay.html</code>. Generate them with</p>
+    <pre style="background:#eef0f4;padding:10px 12px;border-radius:6px">python3 -m orchestrator.trace_view results/&lt;run_id&gt;/trace.json</pre>
+  </main>`;
+  throw new Error("No trace embedded: this file is a template.");
+}
+
+
+/*TRACE_COMMON_JS*/
+
+// Timing ------------------------------------------------------------------------------
+// All times are trace seconds since the start of the run. A model call spans
+// [reply time − duration, reply time]; its Lean check ends at the check's time.
+
+// Solver calls cannot start before the sketch hands out the lemmas; the
+// trace rounds times to 0.1 s, so the raw difference can be slightly earlier.
+const lemmaHandoff = eventsOf("sketch_accepted")[0]?.elapsed_seconds ?? 0;
+const callStart = call => Math.max(call.elapsed_seconds - (call.seconds || 0),
+  call.lemma != null ? lemmaHandoff : 0);
+const runEnd = Math.max(outcome.wall_seconds || 0, ...steps.map(s => s.elapsed_seconds)) + 2;
+const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+// Layout (top → bottom) -----------------------------------------------------------------
+
+// Node widths, and the text lines each kind of node shows, top to bottom.
+const NODE_WIDTH = { problem: 250, root: 250, spine: 230, lemma: 230, attempt: 140, assemble: 260, final: 280 };
+const NODE_LINES = {
+  problem: ["eyebrow", "title", "subtitle"],
+  root: ["eyebrow", "title", "subtitle", "status"],
+  spine: ["title", "subtitle", "status"],
+  lemma: ["title", "subtitle", "status"],
+  attempt: ["title", "subtitle", "status"],
+  assemble: ["eyebrow", "title", "subtitle", "status"],
+  final: ["eyebrow", "title", "subtitle", "status"],
+};
+const LINE_HEIGHT = { eyebrow: 16, title: 19, subtitle: 16, status: 16 };
+const PAD_TOP = 9, PAD_BOTTOM = 14;   // bottom padding holds the progress bar
+const LANE = 160, LEMMA_GAP = 90, ROW = 118;
+
+const nodes = [];
+const edges = [];
+const byId = new Map();
+
+function addNode(node) {
+  const lines = NODE_LINES[node.kind];
+  const h = PAD_TOP + sum(lines.map(line => LINE_HEIGHT[line])) + PAD_BOTTOM;
+  Object.assign(node, { w: NODE_WIDTH[node.kind], h, lines });
+  nodes.push(node);
+  byId.set(node.id, node);
+  return node;
+}
+function addEdge(from, to, role, extra = {}) {
+  edges.push({ from, to, role, ...extra });
+}
+
+// State of a node that wraps a model call (and possibly its Lean check).
+function callNode(call, fields) {
+  const check = checkOfCall.get(call.index) || null;
+  return {
+    step: call, check, role: call.role,
+    start: callStart(call), replied: call.elapsed_seconds,
+    end: check ? check.elapsed_seconds : call.elapsed_seconds,
+    ...fields,
+  };
+}
+
+function buildLayout() {
+  let y = 0;
+  const problemNode = addNode({ id: "problem", kind: "problem", x: 0, y, start: 0, end: 0,
+    title: TRACE.theorem_name, subtitle: `${problem.source_name} · ${problem.source_subset}`, band: "Input" });
+  y += ROW;
+  const root = addNode({ id: "captain", kind: "root", role: "captain", x: 0, y, start: 0, end: 0,
+    title: "Captain", subtitle: `orchestrator · ${TRACE.models?.orchestrator}` });
+  addEdge(problemNode, root, "captain", { label: "statement + proof" });
+
+  // Captain and auditor work, in time order; the auditor branches to the right.
+  const spineCalls = calls.filter(c => c.role === "captain" || c.role === "auditor").sort((a, b) => a.index - b.index);
+  let previous = root, lastCaptain = root;
+  for (const call of spineCalls) {
+    y += ROW;
+    const isAuditor = call.role === "auditor";
+    const kindText = /^formalize/.test(call.label) ? "Formalize" : /^judge/.test(call.label) ? "Faithfulness verdict"
+      : /^sketch/.test(call.label) ? "Proof sketch" : isAuditor ? "Blind read-back" : call.label;
+    const node = addNode({ id: `s${call.index}`, kind: "spine", x: isAuditor ? 300 : 0, y, ...callNode(call, {
+      title: kindText, subtitle: `${call.role} · ${call.label}`, band: /^formalize/.test(call.label) ? "Formalize"
+        : isAuditor || /^judge/.test(call.label) ? "Audit" : /^sketch/.test(call.label) ? "Sketch" : null }) });
+    addEdge(previous, node, call.role, { label: isAuditor ? "delegates code only" : previous.role === "auditor" ? "read-back" : "" });
+    previous = node;
+    if (!isAuditor) lastCaptain = node;
+  }
+
+  // Sketch fans out into lemmas; each lemma fans out into solver lanes.
+  const lemmaNames = lemmaOrder.filter(name => calls.some(c => c.lemma === name));
+  const workers = [...new Set(calls.filter(c => c.lemma != null).map(c => c.worker))].sort((a, b) => a - b);
+  const blockWidth = workers.length * LANE;
+  const sketchTime = (eventsOf("sketch_accepted").at(-1) || {}).elapsed_seconds ?? lastCaptain.end;
+  y += ROW + 20;
+  const lemmaY = y;
+  const attemptTop = lemmaY + ROW;
+  let deepest = attemptTop;
+  const winners = [];
+  lemmaNames.forEach((name, i) => {
+    const x = (i - (lemmaNames.length - 1) / 2) * (blockWidth + LEMMA_GAP);
+    const win = lemmaWins.get(name);
+    const lemmaNode = addNode({ id: `lemma:${name}`, kind: "lemma", role: "solver", x, y: lemmaY,
+      start: sketchTime, end: win ? win.elapsed_seconds : runEnd, lemma: name, win,
+      title: name, subtitle: `${workers.length} solvers in parallel`, band: i === 0 ? "Prove" : null });
+    addEdge(lastCaptain, lemmaNode, "captain", { label: i === Math.floor(lemmaNames.length / 2) ? "delegates lemmas" : "" });
+    workers.forEach((worker, k) => {
+      const laneX = x + (k - (workers.length - 1) / 2) * LANE;
+      let upstream = lemmaNode;
+      calls.filter(c => c.lemma === name && c.worker === worker).sort((a, b) => a.index - b.index)
+        .forEach((call, r) => {
+          const ay = attemptTop + r * ROW;
+          deepest = Math.max(deepest, ay);
+          const node = addNode({ id: `a${call.index}`, kind: "attempt", x: laneX, y: ay, ...callNode(call, {
+            title: `solver ${worker} · r${call.round}`, subtitle: `#${call.index} · ${formatClock(callStart(call))}`, lemma: name, worker }) });
+          const repair = upstream.kind === "attempt";
+          addEdge(upstream, node, "solver", repair ? { repair: true, label: "errors" } : {});
+          upstream = node;
+          if (win && sameAttempt(win, call)) winners.push(node);
+        });
+    });
+  });
+
+  // Winning proofs converge on assembly, then on the verified result.
+  y = deepest + ROW + 30;
+  const assembleSteps = steps.filter(s => s.stage === "assemble");
+  const finalCheck = assembleSteps.find(s => s.kind === "lean_check");
+  const verification = eventsOf("final_verification").at(-1);
+  if (assembleSteps.length) {
+    const assemble = addNode({ id: "assemble", kind: "assemble", role: "lean", x: 0, y,
+      start: finalCheck ? finalCheck.elapsed_seconds - (finalCheck.seconds || 0) : assembleSteps[0].elapsed_seconds,
+      end: finalCheck ? finalCheck.elapsed_seconds : assembleSteps[0].elapsed_seconds,
+      step: finalCheck, title: "Assemble and verify", subtitle: "Lean · proofs spliced into sketch", band: "Verify" });
+    winners.forEach(w => addEdge(w, assemble, "ok", { win: true }));
+    if (!winners.length) addEdge(lastCaptain, assemble, "lean");
+    if (verification) {
+      y += ROW + 6;
+      const final = addNode({ id: "final", kind: "final", role: "lean", x: 0, y,
+        start: verification.elapsed_seconds, end: verification.elapsed_seconds, step: verification,
+        title: verification.checks?.verified ? "Verified Lean proof" : "Verification failed",
+        subtitle: `axioms: ${(verification.checks?.axioms || []).join(", ") || "none"}` });
+      addEdge(assemble, final, "ok", { win: !!verification.checks?.verified, label: "output" });
+    }
+  }
+}
+buildLayout();
+
+// Node status at trace time t --------------------------------------------------------
+
+function nodeState(node, t) {
+  if (t < node.start) return { phase: "hidden" };
+  if (node.kind === "problem" || node.kind === "root") return { phase: "done", status: "neutral", line: node.kind === "root" ? `${callsByRole("captain").length} calls in this run` : "" };
+  if (node.kind === "lemma") {
+    if (node.win && t >= node.win.elapsed_seconds) return { phase: "done", status: "ok", line: `proved · solver ${node.win.worker}, r${node.win.round}` };
+    return { phase: "running", status: "run", line: "solvers working", progress: null };
+  }
+  if (node.kind === "final") return { phase: "done", status: node.step.checks?.verified ? "ok" : "fail", line: "no sorry · statement matches" };
+  if (node.kind === "assemble") {
+    if (t < node.end) return { phase: "compiling", status: "lean", line: "Lean compiling…" };
+    return { phase: "done", status: node.step?.ok ? "ok" : "fail", line: node.step?.ok ? "compiles, no sorry" : "Lean errors" };
+  }
+  // Model-call nodes.
+  if (t < node.replied) {
+    const progress = (t - node.start) / Math.max(1, node.replied - node.start);
+    return { phase: "running", status: "run", line: `thinking · ${formatClock(t - node.start)}`, progress };
+  }
+  if (node.check && t < node.check.elapsed_seconds) return { phase: "compiling", status: "lean", line: "Lean compiling…" };
+  if (node.step.lemma != null) {
+    const state = solverOutcome(node.step).state;
+    const win = lemmaWins.get(node.step.lemma);
+    if (state === "win" && t < win.elapsed_seconds) return { phase: "done", status: "ok", line: "compiles" };
+    const errors = (node.check?.errors || []).length;
+    const text = { win: "proof kept ✓", ok: "compiles", fail: `✗ ${plural(errors, "error")}`, late: "discarded", rejected: "rejected", pending: "no check" }[state];
+    return { phase: "done", status: state === "late" ? "late" : state === "win" ? "win" : state === "fail" ? "fail" : "ok", line: text };
+  }
+  if (node.check) return { phase: "done", status: node.check.ok ? "ok" : "fail", line: node.check.ok ? (node.check.sorry_warning ? "compiles (sorry)" : "compiles") : `✗ ${plural(node.check.errors.length, "error")}` };
+  const verdict = eventsOf("audit_verdict").find(v => v.index > node.step.index);
+  if (/^judge/.test(node.step.label) && verdict) return { phase: "done", status: verdict.verdict === "FAITHFUL" ? "ok" : "fail", line: `verdict: ${verdict.verdict}` };
+  return { phase: "done", status: "ok", line: "reply received" };
+}
+
+// Rendering ---------------------------------------------------------------------------
+
+const clip = (text, max) => text.length > max ? text.slice(0, max - 1) + "…" : text;
+
+function edgeGeometry(edge) {
+  const a = edge.from, b = edge.to;
+  const x1 = a.x, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y - b.h / 2 - 3;
+  const mid = (y1 + y2) / 2;
+  return { d: `M${x1},${y1} C${x1},${mid} ${x2},${mid} ${x2},${y2}`, lx: (x1 + x2) / 2 + 6, ly: mid };
+}
+
+function nodeMarkup(node) {
+  const { w, h } = node;
+  const left = -w / 2, top = -h / 2;
+  const role = node.role || "captain";
+  const hasChip = node.kind === "attempt" || node.kind === "spine";
+  const eyebrow = { problem: "PROBLEM", root: "ORCHESTRATOR", assemble: "LEAN", final: "OUTPUT" }[node.kind];
+  // Characters that fit the node width at each line's font size.
+  const fit = { title: Math.floor((w - (hasChip ? 34 : 24)) / (node.kind === "lemma" || node.kind === "problem" ? 7.4 : 7.6)),
+    subtitle: Math.floor((w - 24) / 6.4) };
+  let cursor = top + PAD_TOP, text = "", statusY = null;
+  for (const line of node.lines) {
+    cursor += LINE_HEIGHT[line];
+    const baseline = cursor - 4;
+    if (line === "eyebrow") {
+      text += `<text x="${left + 14}" y="${baseline}" class="t2" style="letter-spacing:0.08em">${eyebrow}</text>`;
+    } else if (line === "title") {
+      const mono = node.kind === "lemma" || node.kind === "problem" || node.kind === "attempt";
+      if (hasChip) text += `<circle class="chip-role r-${role}" cx="${left + 16}" cy="${baseline - 4}" r="4"></circle>`;
+      text += `<text x="${left + (hasChip ? 26 : 14)}" y="${baseline}" class="t1${mono ? " mono" : ""}">${escapeHTML(clip(node.title || "", fit.title))}</text>`;
+    } else if (line === "subtitle") {
+      text += `<text x="${left + 14}" y="${baseline}" class="t3">${escapeHTML(clip(node.subtitle || "", fit.subtitle))}</text>`;
+    } else if (line === "status") {
+      statusY = baseline;
+    }
+  }
+  const status = statusY === null
+    ? `<text data-line style="display:none"></text>`
+    : `<text x="${left + 14}" y="${statusY}" class="t2 status" data-line></text>`;
+  return `<g class="rnode ${node.kind} r-${role} hidden" data-node="${node.id}" transform="translate(${node.x},${node.y})" tabindex="0" role="button" aria-label="${escapeHTML(node.title)}">
+    <rect class="body" x="${left}" y="${top}" width="${w}" height="${h}" rx="9"></rect>
+    ${text}${status}
+    <rect class="progress-track" x="${left + 10}" y="${top + h - 8}" width="${w - 20}" height="3" rx="1.5" data-track></rect>
+    <rect class="progress" x="${left + 10}" y="${top + h - 8}" width="0" height="3" rx="1.5" data-progress></rect>
+  </g>`;
+}
+
+const BANDS = [];
+function bandMarkup() {
+  // Phase labels to the left of the first node of each phase.
+  return nodes.filter(n => n.band).map(n => {
+    if (BANDS.some(b => b.name === n.band)) return "";
+    BANDS.push({ name: n.band, y: n.y, start: n.start });
+    return `<text class="band-label" x="${n.x - n.w / 2 - 18}" y="${n.y + 4}" text-anchor="end">${n.band.toUpperCase()}</text>`;
+  }).join("");
+}
+
+function renderGraph() {
+  const edgeMarkup = edges.map((edge, i) => {
+    const { d, lx, ly } = edgeGeometry(edge);
+    const cls = edge.win ? "win" : edge.repair ? "repair" : `r-${edge.role}`;
+    return `<path class="ghost" d="${d}"></path><path class="redge ${cls} hidden" data-edge="${i}" d="${d}" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#arrow)"></path>`
+      + (edge.label ? `<text class="rlabel ${edge.repair ? "repair" : ""} hidden" data-edge-label="${i}" x="${lx}" y="${ly}">${edge.label}</text>` : "")
+      + `<circle class="packet r-${edge.win ? "ok" : edge.role}" data-packet="${i}" r="5" cx="0" cy="0" opacity="0"></circle>`;
+  }).join("");
+  document.getElementById("viewport").innerHTML =
+    `<g>${bandMarkup()}</g><g>${edgeMarkup}</g><g>${nodes.map(nodeMarkup).join("")}</g>`;
+  nodes.forEach(n => {
+    n.el = document.querySelector(`[data-node="${CSS.escape(n.id)}"]`);
+    n.lineEl = n.el.querySelector("[data-line]");
+    n.progressEl = n.el.querySelector("[data-progress]");
+    n.trackEl = n.el.querySelector("[data-track]");
+    n.shown = null;
+  });
+  edges.forEach((e, i) => {
+    e.el = document.querySelector(`[data-edge="${i}"]`);
+    e.labelEl = document.querySelector(`[data-edge-label="${i}"]`);
+    e.packetEl = document.querySelector(`[data-packet="${i}"]`);
+    e.length = e.el.getTotalLength?.() || 0;
+  });
+}
+
+// Packets travel along an edge for this many seconds of wall-clock time.
+const PACKET_SECONDS = 0.9;
+
+function updateGraph(t) {
+  for (const node of nodes) {
+    const state = nodeState(node, t);
+    const key = `${state.phase}|${state.status}|${state.line}`;
+    if (key !== node.shown) {
+      node.shown = key;
+      node.el.setAttribute("class", `rnode ${node.kind} r-${node.role || "captain"} ${state.phase}${state.phase === "done" ? ` s-${state.status}` : ""}`);
+      node.lineEl.textContent = state.line || "";
+      node.lineEl.setAttribute("class", `t2 status s-${state.status}`);
+    }
+    const showBar = state.phase === "running" && state.progress != null;
+    node.trackEl.style.display = showBar ? "" : "none";
+    node.progressEl.style.display = showBar ? "" : "none";
+    if (showBar) node.progressEl.setAttribute("width", Math.max(0, Math.min(1, state.progress)) * (node.w - 20));
+    node.state = state;
+  }
+  const packetSpan = PACKET_SECONDS * speed;
+  for (const edge of edges) {
+    const visible = t >= edge.to.start;
+    edge.el.classList.toggle("hidden", !visible);
+    edge.el.setAttribute("stroke-dashoffset", visible ? 0 : 1);
+    edge.labelEl?.classList.toggle("hidden", !visible);
+    const since = t - edge.to.start;
+    const moving = !reducedMotion && playing && since >= 0 && since < packetSpan && edge.length;
+    if (moving) {
+      const point = edge.el.getPointAtLength(since / packetSpan * edge.length);
+      edge.packetEl.setAttribute("cx", point.x);
+      edge.packetEl.setAttribute("cy", point.y);
+      edge.packetEl.setAttribute("opacity", 1);
+    } else {
+      edge.packetEl.setAttribute("opacity", 0);
+    }
+  }
+}
+
+// Narration ---------------------------------------------------------------------------
+
+function describe(step) {
+  const who = step.lemma != null ? `Solver ${step.worker} on ${step.lemma}` : null;
+  if (step.kind === "model_call") {
+    const call = step;
+    const started = [callStart(call)];
+    if (call.role === "auditor") return { t: started[0], role: "auditor", title: "Captain delegates a blind read-back",
+      text: "The auditor receives only the Lean code and the auditor playbook, never the source, and states what the code literally asserts." };
+    if (/^formalize/.test(call.label)) return { t: started[0], role: "captain", title: "Captain formalizes the statement",
+      text: "The captain writes Lean definitions for the setting and a theorem statement whose proof is left as sorry." };
+    if (/^judge/.test(call.label)) return { t: started[0], role: "captain", title: "Captain judges faithfulness",
+      text: "The captain compares the auditor's read-back with the source statement: does the Lean code say exactly what the source says?" };
+    if (/^sketch/.test(call.label)) return { t: started[0], role: "captain", title: "Captain sketches the proof",
+      text: "The captain splits the proof into lemmas, each stated in full but left as sorry, and proves the main theorem from them." };
+    if (call.lemma != null) return { t: started[0], role: "solver", title: `${who}, round ${call.round}`,
+      text: call.round === 0 ? "The solver proposes a proof of the lemma from its statement, the definitions and the informal proof."
+        : "The solver receives its previous proof with Lean's error messages and proposes a repair." };
+  }
+  if (step.kind === "lean_check") {
+    if (step.lemma != null) {
+      const call = callOfCheck.get(step.index);
+      const late = call && solverOutcome(call).state === "late";
+      return { t: step.elapsed_seconds, role: "lean", title: `Lean checks ${step.lemma} (solver ${step.worker}, r${step.round})`,
+        text: late ? "This chain replied after the lemma was already proved; its result is discarded."
+          : step.ok ? "The proof compiles." : `Lean reports ${plural(step.errors.length, "error")}; they are sent back to the solver.` };
+    }
+    if (step.stage === "assemble") return { t: step.elapsed_seconds, role: "lean", title: "Lean compiles the assembled solution",
+      text: `The kept proofs replace every sorry in the sketch. ${step.ok ? "The complete file compiles" : "The file fails"}${step.sorry_warning ? "" : " with no sorry"}.` };
+    return { t: step.elapsed_seconds, role: "lean", title: `Lean checks the ${step.label === "formalize" ? "formalization" : step.label}`,
+      text: step.ok ? (step.label === "sketch" ? "The sketch compiles: the lemmas suffice to prove the theorem." : "The formalization compiles. The sorry placeholder is expected here.")
+        : `Lean reports ${plural(step.errors.length, "error")}; they go back to the captain for repair.` };
+  }
+  if (step.event === "audit_verdict") return { t: step.elapsed_seconds, role: "captain", title: `Verdict: ${step.verdict}`,
+    text: step.verdict === "FAITHFUL" ? "The read-back matches the source, so the formal statement is accepted." : "The formalization is sent back for revision." };
+  if (step.event === "sketch_accepted") return { t: step.elapsed_seconds, role: "captain", title: `${plural((step.lemmas || []).length, "lemma")} delegated`,
+    text: `Each lemma goes to ${cfg.workers ?? "several"} independent solver chains running in parallel; the first proof that compiles is kept.` };
+  if (step.event === "lemma_proved") return { t: step.elapsed_seconds, role: "solver", title: `${step.lemma} proved`,
+    text: `Solver ${step.worker}'s round-${step.round} proof is kept. The other chains on this lemma stop.` };
+  if (step.event === "final_verification") return { t: step.elapsed_seconds, role: "lean", title: step.checks?.verified ? "Verified" : "Verification failed",
+    text: step.checks?.verified ? `The solution compiles without sorry, uses only ${(step.checks.axioms || []).join(", ")}, and its type equals the audited theorem.` : "One or more final checks failed." };
+  if (step.event === "replan") return { t: step.elapsed_seconds, role: "captain", title: "Captain revises the sketch",
+    text: "Some lemmas were not proved within budget; the captain writes a new decomposition." };
+  return null;
+}
+
+const events = [{ t: 0, role: "decision", title: "The run begins",
+  text: "The captain receives the informal statement and proof. Everything below follows from this input.", step: null }];
+for (const step of steps) {
+  const entry = describe(step);
+  if (entry) events.push({ ...entry, step });
+}
+const solverStart = e => e.step?.kind === "model_call" && e.step.lemma != null ? 1 : 0;
+events.sort((a, b) => a.t - b.t || solverStart(a) - solverStart(b) || (a.step?.index ?? -1) - (b.step?.index ?? -1));
+
+function renderLog() {
+  document.getElementById("log").innerHTML = events.map((e, i) =>
+    `<button type="button" data-event="${i}"><span class="t">${formatClock(e.t)}</span><span class="dot ${e.role}"></span><span>${escapeHTML(e.title)}</span></button>`).join("");
+}
+
+let shownEvent = -1;
+function updateNarration(t) {
+  let current = 0;
+  for (let i = 0; i < events.length; i++) if (events[i].t <= t) current = i;
+  if (current === shownEvent) return;
+  shownEvent = current;
+  const e = events[current];
+  document.getElementById("narration-title").textContent = e.title;
+  document.getElementById("narration-text").textContent = e.text;
+  const band = [...BANDS].reverse().find(b => b.start <= t);
+  document.getElementById("phase-name").textContent = band ? band.name : "";
+  document.querySelectorAll("#phases span").forEach(s => s.classList.toggle("on", s.textContent === band?.name));
+  const buttons = document.querySelectorAll("#log button");
+  buttons.forEach((b, i) => b.className = i < current ? "past" : i === current ? "now" : "future");
+  buttons[current]?.scrollIntoView({ block: "nearest" });
+}
+
+// Camera ------------------------------------------------------------------------------
+
+const view = { x: 0, y: 0, k: 1 };
+let follow = true;
+
+function applyView() {
+  document.getElementById("viewport").setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`);
+}
+
+function frameFor(list, maxZoom = 1) {
+  const stage = document.getElementById("stage").getBoundingClientRect();
+  const minX = Math.min(...list.map(n => n.x - n.w / 2)) - 40, maxX = Math.max(...list.map(n => n.x + n.w / 2)) + 40;
+  const minY = Math.min(...list.map(n => n.y - n.h / 2)) - 70, maxY = Math.max(...list.map(n => n.y + n.h / 2)) + 50;
+  const k = Math.max(0.12, Math.min(maxZoom, stage.width / (maxX - minX), stage.height / (maxY - minY)));
+  return { k, x: stage.width / 2 - (minX + maxX) / 2 * k, y: stage.height / 2 - (minY + maxY) / 2 * k };
+}
+
+// Nodes the camera keeps in view: those active now, plus the most recent finishers.
+function focusNodes(t) {
+  const visible = nodes.filter(n => t >= n.start);
+  const active = visible.filter(n => n.state?.phase === "running" || n.state?.phase === "compiling");
+  const recent = [...visible].sort((a, b) => b.end - a.end).slice(0, active.length ? 1 : 2);
+  const list = [...new Set([...active, ...recent])];
+  return list.length ? list : [nodes[0]];
+}
+
+function updateCamera(t, instant = false) {
+  if (!follow) return;
+  const target = frameFor(focusNodes(t), 1);
+  const rate = instant || reducedMotion ? 1 : 0.07;
+  view.x += (target.x - view.x) * rate;
+  view.y += (target.y - view.y) * rate;
+  view.k += (target.k - view.k) * rate;
+  applyView();
+}
+
+function setFollow(on) {
+  follow = on;
+  document.getElementById("follow").setAttribute("aria-pressed", on);
+}
+
+function installPanZoom() {
+  const stage = document.getElementById("stage");
+  const pointers = new Map();
+  let drag = null, pinch = null;
+  const local = e => { const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  const zoomAt = (factor, px, py) => {
+    const k = Math.min(2.5, Math.max(0.12, view.k * factor));
+    view.x = px - (px - view.x) * (k / view.k);
+    view.y = py - (py - view.y) * (k / view.k);
+    view.k = k;
+    applyView();
+  };
+  stage.addEventListener("wheel", event => {
+    event.preventDefault();
+    setFollow(false);
+    const [px, py] = local(event);
+    zoomAt(Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.0015)), px, py);
+  }, { passive: false });
+  stage.addEventListener("pointerdown", event => {
+    if (event.target.closest(".stage-tools")) return;
+    pointers.set(event.pointerId, local(event));
+    if (pointers.size === 1) drag = { start: local(event), origin: { x: view.x, y: view.y }, moved: false, target: event.target };
+    else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch = { distance: Math.hypot(a[0] - b[0], a[1] - b[1]), k: view.k };
+      drag = null;
+    }
+  });
+  stage.addEventListener("pointermove", event => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, local(event));
+    if (pinch && pointers.size === 2) {
+      setFollow(false);
+      const [a, b] = [...pointers.values()];
+      zoomAt(pinch.k * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch.distance / view.k, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+      return;
+    }
+    if (!drag) return;
+    const [x, y] = local(event);
+    const dx = x - drag.start[0], dy = y - drag.start[1];
+    if (!drag.moved && Math.hypot(dx, dy) > 4) {
+      drag.moved = true;
+      setFollow(false);
+      stage.classList.add("dragging");
+      stage.setPointerCapture(event.pointerId);
+    }
+    if (drag.moved) {
+      view.x = drag.origin.x + dx;
+      view.y = drag.origin.y + dy;
+      applyView();
+    }
+  });
+  const end = event => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (drag && !drag.moved && event.type === "pointerup") {
+      const g = drag.target.closest?.("[data-node]");
+      if (g) openNode(byId.get(g.dataset.node));
+    }
+    if (pointers.size === 0) { drag = null; stage.classList.remove("dragging"); }
+  };
+  stage.addEventListener("pointerup", end);
+  stage.addEventListener("pointercancel", end);
+}
+
+// Node records ------------------------------------------------------------------------
+
+function openNode(node) {
+  if (!node || nodeState(node, time).phase === "hidden") return;
+  pause();
+  if (node.kind === "problem") {
+    return showDrawer(summaryHead("Input problem", `<span><b>${escapeHTML(problem.uuid)}</b></span>`, "decision"),
+      `<div class="tagblock"><span class="tagname">informal statement</span><div class="prose">${mathHTML(problem.informal_statement || "")}</div></div>
+       <div class="tagblock"><span class="tagname">informal proof</span><div class="prose">${mathHTML(problem.informal_proof || "")}</div></div>`);
+  }
+  if (node.kind === "root") {
+    return showDrawer(summaryHead("Captain", `<span>model <b>${escapeHTML(TRACE.models?.orchestrator)}</b></span>`, "captain"),
+      `<p>The orchestrating model. It formalizes, judges, and plans the proof itself, and delegates the
+       read-back to the auditor and each lemma to ${cfg.workers ?? "several"} parallel solvers.</p>
+       ${stepList(callsByRole("captain"))}`);
+  }
+  if (node.kind === "lemma") {
+    const statement = (finalSketch?.lemmas || []).find(l => lemmaName(l) === node.lemma);
+    return showDrawer(summaryHead(`<code>${escapeHTML(node.lemma)}</code>`, `<span>${plural(calls.filter(c => c.lemma === node.lemma).length, "solver call")}</span>`, "solver"),
+      `${statement ? `<div class="tagblock"><span class="tagname">statement</span>${leanHTML(statement)}</div>` : ""}
+       ${node.win ? `<div class="tagblock"><span class="tagname">kept proof · solver ${node.win.worker}, round ${node.win.round}</span>${leanHTML(node.win.proof || "")}</div>` : ""}
+       ${stepList(steps.filter(s => s.lemma === node.lemma))}`);
+  }
+  if (node.kind === "final") {
+    return showDrawer(summaryHead("Verified Lean proof", `<span>axioms <b>${escapeHTML((node.step.checks?.axioms || []).join(", "))}</b></span>`, "lean"),
+      `<table class="kv">${Object.entries(node.step.checks || {}).filter(([, v]) => typeof v === "boolean")
+        .map(([k, v]) => `<tr><td class="num">${k}</td><td>${v ? `<span class="pill ok">pass</span>` : `<span class="pill fail">fail</span>`}</td></tr>`).join("")}</table>
+       ${leanHTML(node.step.solution || "", new Set(), "tall")}`);
+  }
+  if (node.step) showStep(node.step.index);
+}
+
+// Export ------------------------------------------------------------------------------
+// Renders the completed tree (state at the end of the run) to a JPEG. Styles are
+// inlined from the live page because an SVG drawn into a canvas sees no CSS.
+
+const EXPORT_STYLES = ["fill", "fill-opacity", "stroke", "stroke-width", "stroke-dasharray",
+  "stroke-dashoffset", "stroke-opacity", "opacity", "font-family", "font-size", "font-weight",
+  "letter-spacing", "display", "visibility", "paint-order", "stroke-linejoin"];
+const EXPORT_SCALE = 2;
+
+function finalTreeSVG() {
+  const svg = document.getElementById("graph");
+  svg.classList.add("exporting");
+  updateGraph(runEnd);
+  const clone = svg.cloneNode(true);
+  const sources = [svg, ...svg.querySelectorAll("*")];
+  const targets = [clone, ...clone.querySelectorAll("*")];
+  sources.forEach((source, i) => {
+    const computed = getComputedStyle(source);
+    targets[i].setAttribute("style", EXPORT_STYLES.map(name => `${name}:${computed.getPropertyValue(name)}`).join(";"));
+    targets[i].removeAttribute("class");
+  });
+  clone.querySelectorAll("[data-packet], [data-track], [data-progress]").forEach(el => el.remove());
+  svg.classList.remove("exporting");
+  updateGraph(time);
+
+  // Frame every node and phase label, with a header line above the tree.
+  const padding = 40, header = 70;
+  const minX = Math.min(...nodes.map(n => n.x - n.w / 2)) - 150;
+  const maxX = Math.max(...nodes.map(n => n.x + n.w / 2));
+  const minY = Math.min(...nodes.map(n => n.y - n.h / 2));
+  const maxY = Math.max(...nodes.map(n => n.y + n.h / 2));
+  const width = maxX - minX + 2 * padding, height = maxY - minY + 2 * padding + header;
+  const root = getComputedStyle(document.documentElement);
+  const color = name => root.getPropertyValue(name).trim();
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", width);
+  clone.setAttribute("height", height);
+  clone.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  clone.querySelector("#viewport").setAttribute("transform", `translate(${padding - minX},${padding + header - minY})`);
+  const verified = outcome.checks?.verified;
+  const font = getComputedStyle(document.body).fontFamily.replace(/"/g, "'");
+  clone.insertAdjacentHTML("afterbegin", `
+    <rect width="${width}" height="${height}" style="fill:${color("--bg")}"></rect>
+    <text x="${padding}" y="${padding + 8}" style="font-family:${font};font-size:22px;font-weight:600;fill:${color("--ink")}">${escapeHTML(TRACE.theorem_name)}</text>
+    <text x="${padding}" y="${padding + 34}" style="font-family:${font};font-size:14px;fill:${color("--muted")}">${escapeHTML(`${TRACE.run_id} · ${verified ? "proved, verified" : outcome.status || "incomplete"} · ${formatDuration(outcome.wall_seconds || runEnd)} · ${TRACE.models?.orchestrator} + ${TRACE.models?.worker}`)}</text>`);
+  return { markup: new XMLSerializer().serializeToString(clone), width, height, background: color("--bg") };
+}
+
+function svgToJPEG({ markup, width, height, background }) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml;charset=utf-8" }));
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = width * EXPORT_SCALE;
+      canvas.height = height * EXPORT_SCALE;
+      const context = canvas.getContext("2d");
+      context.fillStyle = background;   // JPEG has no transparency
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.scale(EXPORT_SCALE, EXPORT_SCALE);
+      context.drawImage(image, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("The browser could not encode the image.")), "image/jpeg", 0.92);
+    };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("The browser could not render the tree.")); };
+    image.src = url;
+  });
+}
+
+// In a published artifact the `downloads` capability asks the viewer to confirm;
+// opened as a local file, a plain download link does the same job.
+async function saveFile(blob, filename) {
+  const downloads = window.claude?.use ? await window.claude.use("downloads") : null;
+  if (downloads) return downloads.save({ filename, data: blob });
+  const url = URL.createObjectURL(blob);
+  const link = Object.assign(document.createElement("a"), { href: url, download: filename });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return { status: "saved" };
+}
+
+async function exportTree() {
+  const button = document.getElementById("export");
+  const status = document.getElementById("export-status");
+  const report = text => { status.textContent = text; status.hidden = !text; };
+  pause();
+  button.disabled = true;
+  report("Rendering the final tree…");
+  try {
+    const blob = await svgToJPEG(finalTreeSVG());
+    const result = await saveFile(blob, `${TRACE.run_id}_orchestration_tree.jpg`);
+    report(result.status === "saved" ? `Saved ${TRACE.run_id}_orchestration_tree.jpg` : "");
+  } catch (error) {
+    const messages = { declined: "Export cancelled.", rate_limited: "A save prompt is already open.",
+      unavailable: "Saving files is not available in this view." };
+    report(messages[error?.code] || error?.message || "Export failed.");
+  } finally {
+    button.disabled = false;
+    setTimeout(() => report(""), 4000);
+  }
+}
+
+// Playback ------------------------------------------------------------------------------
+
+let time = 0, playing = false, speed = 15, lastFrame = null;
+
+function setTime(t, instantCamera = false) {
+  time = Math.max(0, Math.min(runEnd, t));
+  updateGraph(time);
+  updateNarration(time);
+  updateCamera(time, instantCamera);
+  document.getElementById("scrub").value = Math.round(time / runEnd * 1000);
+  document.getElementById("clock").textContent = `${formatClock(time)} / ${formatClock(runEnd)}`;
+}
+
+function frame(now) {
+  if (lastFrame !== null && playing) {
+    setTime(time + (now - lastFrame) / 1000 * speed);
+    if (time >= runEnd) pause();
+  } else if (!playing) {
+    updateCamera(time);
+  }
+  lastFrame = now;
+  requestAnimationFrame(frame);
+}
+
+function play() {
+  if (time >= runEnd) setTime(0, true);
+  playing = true;
+  document.getElementById("play").textContent = "❚❚ Pause";
+}
+function pause() {
+  playing = false;
+  document.getElementById("play").textContent = time >= runEnd ? "↺ Replay" : "▶ Play";
+  updateGraph(time);
+}
+
+function jumpEvent(direction) {
+  const index = direction > 0
+    ? events.findIndex(e => e.t > time + 0.01)
+    : events.map(e => e.t).findLastIndex(t => t < time - 0.01);
+  if (index >= 0) setTime(events[index].t + (direction > 0 ? 0.01 : 0), false);
+  else if (direction > 0) setTime(runEnd);
+  else setTime(0);
+}
+
+function init() {
+  renderHeader();
+  installDrawerHandlers();
+  renderGraph();
+  renderLog();
+  document.getElementById("phases").innerHTML = BANDS.map(b => `<span>${b.name}</span>`).join("");
+  installPanZoom();
+
+  document.getElementById("play").addEventListener("click", () => playing ? pause() : play());
+  document.getElementById("prev-event").addEventListener("click", () => jumpEvent(-1));
+  document.getElementById("next-event").addEventListener("click", () => jumpEvent(1));
+  document.getElementById("scrub").addEventListener("input", event => setTime(Number(event.target.value) / 1000 * runEnd));
+  document.getElementById("speed").addEventListener("change", event => { speed = Number(event.target.value); });
+  document.getElementById("follow").addEventListener("click", () => setFollow(!follow));
+  document.getElementById("export").addEventListener("click", exportTree);
+  document.getElementById("fit").addEventListener("click", () => {
+    setFollow(false);
+    Object.assign(view, frameFor(nodes, 1));
+    applyView();
+  });
+  document.getElementById("log").addEventListener("click", event => {
+    const button = event.target.closest("[data-event]");
+    if (button) setTime(events[Number(button.dataset.event)].t + 0.01);
+  });
+  document.addEventListener("keydown", event => {
+    if (drawerOpen || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.target.closest?.("input, select")) return;
+    const node = event.target.closest?.("[data-node]");
+    if (node && event.key === "Enter") return openNode(byId.get(node.dataset.node));
+    if (event.key === " ") { event.preventDefault(); playing ? pause() : play(); }
+    else if (event.key === "ArrowRight") jumpEvent(1);
+    else if (event.key === "ArrowLeft") jumpEvent(-1);
+    else if (event.key === "f") setFollow(!follow);
+  });
+
+  // Opening frame: the whole orchestration, so the reader sees its shape before playing.
+  Object.assign(view, frameFor(nodes, 1));
+  applyView();
+  setFollow(false);
+  setTime(0);
+  requestAnimationFrame(frame);
+  document.getElementById("play").addEventListener("click", () => setFollow(true), { once: true });
+}
+
+init();
+</script>
+</body>
+</html>

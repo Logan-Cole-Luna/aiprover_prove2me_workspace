@@ -8,6 +8,34 @@ lakefile.olean
 lake-manifest.json
 .lake/
 *.olean
+*.lean
 
 # OS noise
 .DS_Store
+
+# Python environments and caches
+.venv*/
+aiprover/venv_*/
+__pycache__/
+*.pyc
+
+# AIProver runtime state and binaries
+aiprover/bin/
+aiprover/work/
+
+# Nested Lean workspace (own repository) and build output
+prove2me_workspace/
+
+# Generated Lean outputs of orchestration runs
+results/**/*.lean
+
+# Scratch space and logs
+temp/
+logs/
+*.log
+*.out
+*.err
+
+# Editor
+.vscode/
+.idea/

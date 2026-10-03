@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>__PAGE_TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/*TRACE_COMMON_CSS*/
+
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; overflow: hidden; }
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.stage.dragging { cursor: grabbing; }
+.stage svg { width: 100%; height: 100%; display: block; }
+
+.overlay {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.overlay.controls { top: 14px; left: 16px; right: 16px; }
+.overlay.legend-box {
+  left: 16px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  gap: 4px 14px;
+  max-width: calc(100% - 32px);
+}
+.overlay.legend-box span { display: inline-flex; align-items: center; gap: 6px; }
+.overlay .btn { background: var(--surface); font-size: 0.85rem; padding: 5px 11px; }
+.overlay .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.hint { font-size: 0.8rem; color: var(--muted); margin-left: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; }
+.sw-box { width: 14px; height: 10px; border-radius: 2px; border: 1.5px solid; display: inline-block; }
+
+/* Graph marks ---------------------------------------------------------- */
+.gnode { cursor: pointer; }
+.gnode rect.body { fill: var(--surface); stroke: var(--line); stroke-width: 1.3; }
+.gnode:hover rect.body, .gnode:focus-visible rect.body { stroke: var(--accent); }
+.gnode:focus { outline: none; }
+.gnode text { fill: var(--ink); font-family: var(--font-ui); }
+.gnode .t1 { font-size: 13px; font-weight: 600; }
+.gnode .t1.mono { font-family: var(--font-mono); font-size: 12px; }
+.gnode .t2 { font-size: 11px; fill: var(--muted); }
+.gnode .t3 { font-size: 10.5px; fill: var(--muted); font-family: var(--font-mono); }
+.gnode.captain rect.body { stroke: var(--captain); stroke-width: 2.2; fill: var(--accent-soft); }
+.gnode.captain .t1 { font-size: 16px; }
+.gnode.problem rect.body { stroke: var(--muted); stroke-dasharray: 5 3; }
+.gnode.task rect.body { stroke-width: 1.8; }
+.gnode.task.r-captain rect.body { stroke: var(--captain); }
+.gnode.task.r-auditor rect.body { stroke: var(--auditor); }
+.gnode.task.r-solver rect.body { stroke: var(--solver); }
+.gnode.task.r-lean rect.body { stroke: var(--lean); }
+.gnode .stripe.r-captain { fill: var(--captain); }
+.gnode .stripe.r-auditor { fill: var(--auditor); }
+.gnode .stripe.r-solver { fill: var(--solver); }
+.gnode .stripe.r-lean { fill: var(--lean); }
+.gnode.agent rect.body { fill: var(--surface-2); }
+.gnode.s-ok rect.body, .gnode.s-win rect.body { fill: var(--ok-soft); stroke: var(--ok); }
+.gnode.s-win rect.body { stroke-width: 2.6; }
+.gnode.s-fail rect.body { fill: var(--fail-soft); stroke: var(--fail); }
+.gnode.s-rejected rect.body { fill: var(--warn-soft); stroke: var(--warn); }
+.gnode.s-late rect.body { fill: url(#hatch); stroke: var(--muted); stroke-dasharray: 4 3; }
+.gnode.s-late text { fill: var(--muted); }
+.gnode .status.s-ok, .gnode .status.s-win { fill: var(--ok); }
+.gnode .status.s-fail { fill: var(--fail); }
+.gnode .status.s-warn { fill: var(--warn); }
+.gnode.sel rect.body { stroke: var(--accent); stroke-width: 3; }
+.toggle { cursor: pointer; }
+.toggle circle { fill: var(--surface); stroke: var(--muted); stroke-width: 1.3; }
+.toggle:hover circle { stroke: var(--accent); }
+.toggle text { font-family: var(--font-mono); font-size: 13px; fill: var(--ink); font-weight: 600; }
+#hatch-a { fill: var(--surface); }
+#hatch-b { stroke: var(--line); }
+
+.edge { fill: none; stroke: var(--line); stroke-width: 1.6; }
+.edge.r-captain { stroke: var(--captain); opacity: 0.55; }
+.edge.r-auditor { stroke: var(--auditor); opacity: 0.6; }
+.edge.r-solver { stroke: var(--solver); opacity: 0.55; }
+.edge.r-lean { stroke: var(--lean); opacity: 0.6; }
+.edge.repair { stroke: var(--fail); opacity: 0.7; stroke-dasharray: 5 3; }
+.edge.dep { stroke: var(--muted); stroke-dasharray: 3 4; opacity: 0.9; }
+.elabel { font-size: 10.5px; fill: var(--muted); font-family: var(--font-ui); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.elabel.repair { fill: var(--fail); }
+.arrowhead { fill: var(--muted); }
+svg.focusing .gnode:not(.lit) { opacity: 0.35; }
+svg.focusing .edge:not(.lit), svg.focusing .elabel:not(.lit) { opacity: 0.15; }
+svg.focusing .edge.lit { opacity: 1; stroke-width: 2.4; }
+
+@media (max-width: 620px) {
+  .hint { display: none; }
+  .overlay.legend-box { font-size: 0.72rem; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="thm" id="thm"></span>
+  <span class="run" id="run"></span>
+  <span id="status"></span>
+  <span class="spacer"></span>
+  <span class="run" id="models"></span>
+  <a class="btn" href="trace.html">Walkthrough</a>
+  <a class="btn" href="trace_replay.html">Replay</a>
+</header>
+
+<div class="stage" id="stage">
+  <div class="overlay controls">
+    <button class="btn" type="button" id="zoom-in" aria-label="Zoom in">+</button>
+    <button class="btn" type="button" id="zoom-out" aria-label="Zoom out">−</button>
+    <button class="btn" type="button" id="fit">Fit</button>
+    <button class="btn" type="button" id="collapse">Collapse solvers</button>
+    <button class="btn" type="button" id="deps" aria-pressed="true">Lemma dependencies</button>
+    <span class="hint">Drag to pan, scroll or pinch to zoom, select a node for its record, ± folds a subtask.</span>
+  </div>
+  <svg id="graph" aria-label="Orchestration graph">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" class="arrowhead"></path>
+      </marker>
+      <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <rect id="hatch-a" width="8" height="8"></rect>
+        <line id="hatch-b" x1="0" y1="0" x2="0" y2="8" stroke-width="3"></line>
+      </pattern>
+    </defs>
+    <g id="viewport"></g>
+  </svg>
+  <div class="overlay legend-box" aria-label="Legend">
+    <span><i class="dot captain"></i>captain</span>
+    <span><i class="dot auditor"></i>auditor</span>
+    <span><i class="dot solver"></i>solver</span>
+    <span><i class="dot lean"></i>Lean</span>
+    <span><i class="sw-box" style="border-color:var(--ok);background:var(--ok-soft);border-width:2.5px"></i>kept</span>
+    <span><i class="sw-box" style="border-color:var(--ok);background:var(--ok-soft)"></i>compiles</span>
+    <span><i class="sw-box" style="border-color:var(--fail);background:var(--fail-soft)"></i>Lean errors</span>
+    <span><i class="sw-box" style="border-color:var(--muted);border-style:dashed"></i>discarded</span>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Node detail">
+  <div class="drawer-head" id="drawer-head"></div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script>
+const TRACE = /*TRACE_DATA*/null;
+
+// Templates carry no trace; the generator embeds one. Opened directly, a
+// template explains where the rendered pages are instead of failing silently.
+if (!TRACE) {
+  document.body.innerHTML = `<main style="padding:48px 24px;max-width:62ch;font:16px/1.6 system-ui,sans-serif">
+    <h1 style="font-size:1.4rem">No run data in this file</h1>
+    <p>This is a page template. The rendered pages for each run are in
+    <code>results/&lt;run_id&gt;/</code>: <code>trace.html</code>, <code>trace_graph.html</code>
+    and <code>trace_replay.html</code>. Generate them with</p>
+    <pre style="background:#eef0f4;padding:10px 12px;border-radius:6px">python3 -m orchestrator.trace_view results/&lt;run_id&gt;/trace.json</pre>
+  </main>`;
+  throw new Error("No trace embedded: this file is a template.");
+}
+
+
+/*TRACE_COMMON_JS*/
+
+// Graph model ------------------------------------------------------------------------
+// captain → subtasks → agents (who performs them) → attempts, in time order.
+
+const algorithm = TRACE.algorithm || [];
+const captainCalls = callsByRole("captain");
+
+function attemptStatus(step) {
+  if (step.kind === "model_call" && step.lemma != null) return solverOutcome(step).state;
+  if (step.kind === "model_call") {
+    const check = checkOfCall.get(step.index);
+    if (step.error) return "fail";
+    return check ? (check.ok ? "ok" : "fail") : "done";
+  }
+  if (step.kind === "lean_check") return step.ok ? "ok" : "fail";
+  if (step.event === "audit_verdict") return step.verdict === "FAITHFUL" ? "ok" : "fail";
+  if (step.event === "final_verification") return step.checks?.verified ? "ok" : "fail";
+  return "done";
+}
+
+const STATUS_TEXT = { win: "proof kept", ok: "compiles", fail: "Lean errors", late: "discarded",
+  rejected: "rejected", pending: "no check", done: "reply received" };
+
+function attemptNode(step, id) {
+  const status = attemptStatus(step);
+  const check = step.kind === "model_call" ? checkOfCall.get(step.index) : null;
+  let title, detail;
+  if (step.kind === "model_call" && step.lemma != null) {
+    title = `round ${step.round}`;
+    detail = STATUS_TEXT[status];
+  } else if (step.kind === "model_call") {
+    title = step.label;
+    detail = step.role === "auditor" ? "read-back"
+      : /^judge/.test(step.label) ? "comparison"
+      : check ? (check.ok ? (check.sorry_warning ? "compiles · sorry" : "compiles") : "Lean errors") : STATUS_TEXT[status];
+  } else if (step.kind === "lean_check") {
+    title = step.label;
+    detail = step.ok ? (step.sorry_warning ? "compiles · sorry" : "compiles, no sorry") : "Lean errors";
+  } else {
+    title = step.event === "audit_verdict" ? step.verdict : EVENT_TEXT[step.event] || step.event;
+    detail = step.event === "audit_verdict" ? "verdict" : step.event === "final_verification"
+      ? (step.checks?.verified ? "all checks pass" : "checks fail") : "";
+  }
+  const start = step.kind === "model_call" ? step.elapsed_seconds - (step.seconds || 0) : step.elapsed_seconds;
+  const end = check ? check.elapsed_seconds : step.elapsed_seconds;
+  const time = start === end ? formatClock(end) : `${formatClock(start)}–${formatClock(end)}`;
+  const mono = step.kind !== "decision";
+  return { id, type: "attempt", step, status, title, detail, time, mono, children: [] };
+}
+
+const agentNode = (id, title, role, sequence) =>
+  ({ id, type: "agent", role, title, sequence: sequence.map((s, i) => attemptNode(s, `${id}/${i}`)) });
+
+function buildTree() {
+  const tasks = [];
+  const pick = (predicate) => steps.filter(predicate).sort((a, b) => a.index - b.index);
+  const formalizeCalls = pick(s => s.kind === "model_call" && s.role === "captain" && /^formalize/.test(s.label));
+  tasks.push({ id: "formalize", key: "formalize", role: "captain", title: "Formalize",
+    subtitle: "captain writes Lean statement", algorithm: algorithm[0],
+    agents: [agentNode("formalize/a", "captain", "captain", formalizeCalls)] });
+  tasks.push({ id: "audit", key: "audit", role: "auditor", title: "Blind read-back",
+    subtitle: "delegated to auditor", algorithm: algorithm[1],
+    agents: [agentNode("audit/a", "auditor", "auditor", pick(s => s.kind === "model_call" && s.role === "auditor"))] });
+  tasks.push({ id: "judge", key: "judge", role: "captain", title: "Faithfulness verdict",
+    subtitle: "captain compares with source", algorithm: algorithm[2],
+    agents: [agentNode("judge/a", "captain", "captain",
+      pick(s => (s.kind === "model_call" && /^judge/.test(s.label)) || s.event === "audit_verdict"))] });
+  tasks.push({ id: "sketch", key: "sketch", role: "captain", title: "Proof sketch",
+    subtitle: `captain splits proof into ${plural(finalSketch?.lemmas?.length ?? 0, "lemma")}`, algorithm: algorithm[3],
+    agents: [agentNode("sketch/a", "captain", "captain", pick(s => s.kind === "model_call" && /^sketch/.test(s.label)))] });
+  for (const name of lemmaOrder) {
+    const lemmaCalls = calls.filter(c => c.lemma === name);
+    const workers = [...new Set(lemmaCalls.map(c => c.worker))].sort((a, b) => a - b);
+    const win = lemmaWins.get(name);
+    tasks.push({ id: `lemma:${name}`, key: "lemma", lemma: name, role: "solver", title: name, mono: true,
+      subtitle: win ? `proved by solver ${win.worker}, round ${win.round}` : "not proved",
+      status: win ? "ok" : "fail", algorithm: algorithm[4],
+      agents: workers.map(w => agentNode(`lemma:${name}/w${w}`, `solver ${w}`, "solver",
+        lemmaCalls.filter(c => c.worker === w).sort((a, b) => a.index - b.index))) });
+  }
+  const assembleSteps = pick(s => s.stage === "assemble");
+  if (assembleSteps.length) {
+    tasks.push({ id: "assemble", key: "assemble", role: "lean", title: "Assemble and verify",
+      subtitle: "Lean checks the full solution", algorithm: algorithm[6],
+      agents: [agentNode("assemble/a", "Lean", "lean", assembleSteps)] });
+  }
+  return tasks;
+}
+
+const tasks = buildTree();
+const collapsed = new Set();
+let showDeps = true;
+
+// Layout ------------------------------------------------------------------------------
+
+const SIZE = {
+  problem: [190, 66], captain: [210, 84], task: [236, 62], agent: [118, 42], attempt: [150, 54],
+};
+const COLUMN = { problem: 0, captain: 250, task: 560, agent: 870, sequence: 1030 };
+const SEQUENCE_GAP = 200, ROW = 66, TASK_GAP = 22;
+
+function layout() {
+  const nodes = [], edges = [];
+  let cursor = 0;
+  for (const task of tasks) {
+    const open = !collapsed.has(task.id);
+    if (open && task.agents.length) {
+      for (const agent of task.agents) {
+        agent.x = COLUMN.agent;
+        agent.y = cursor + ROW / 2;
+        agent.sequence.forEach((a, i) => { a.x = COLUMN.sequence + i * SEQUENCE_GAP; a.y = agent.y; });
+        cursor += ROW;
+      }
+      task.y = (task.agents[0].y + task.agents.at(-1).y) / 2;
+    } else {
+      task.y = cursor + ROW / 2;
+      cursor += ROW;
+    }
+    task.x = COLUMN.task;
+    cursor += TASK_GAP;
+  }
+  const captain = { id: "captain", type: "captain", x: COLUMN.captain, y: (tasks[0].y + tasks.at(-1).y) / 2 };
+  const problemNode = { id: "problem", type: "problem", x: COLUMN.problem, y: captain.y };
+  nodes.push(problemNode, captain);
+  edges.push({ from: problemNode, to: captain, cls: "", label: "", path: ["problem", "captain"] });
+
+  for (const task of tasks) {
+    nodes.push({ ...task, type: "task", ref: task });
+    edges.push({ from: captain, to: task, cls: `r-${task.role}`, label: task.role === "captain" ? "" : task.role === "solver" ? "delegates" : task.role === "auditor" ? "delegates" : "", path: ["captain", task.id] });
+    if (collapsed.has(task.id)) continue;
+    for (const agent of task.agents) {
+      nodes.push({ ...agent, type: "agent", parent: task.id });
+      edges.push({ from: task, to: agent, cls: `r-${agent.role}`, path: [task.id, agent.id] });
+      agent.sequence.forEach((a, i) => {
+        nodes.push({ ...a, parent: agent.id, task: task.id });
+        const previous = i === 0 ? agent : agent.sequence[i - 1];
+        const repair = i > 0 && previous.status === "fail";
+        edges.push({ from: previous, to: a, cls: repair ? "repair" : `r-${agent.role}`,
+          label: repair ? "errors" : "", path: [previous.id, a.id] });
+      });
+    }
+  }
+  if (showDeps) {
+    for (const task of tasks.filter(t => t.key === "lemma")) {
+      const proof = lemmaWins.get(task.lemma)?.proof;
+      for (const used of lemmaUses(proof, task.lemma)) {
+        const target = tasks.find(t => t.lemma === used);
+        if (target) edges.push({ from: task, to: target, cls: "dep", label: "uses", dep: true, path: [task.id, target.id] });
+      }
+    }
+  }
+  return { nodes, edges };
+}
+
+// Rendering ---------------------------------------------------------------------------
+
+const clip = (text, max) => text.length > max ? text.slice(0, max - 1) + "…" : text;
+let current = { nodes: [], edges: [] };
+let selected = null;
+
+function edgePath(edge) {
+  const [fw] = SIZE[edge.from.type || "task"] || SIZE.task;
+  const [, th] = SIZE[edge.to.type || "task"] || SIZE.task;
+  if (edge.dep) {
+    // Lemma dependencies run down the left side of the subtask column.
+    const x = edge.from.x, y1 = edge.from.y, y2 = edge.to.y;
+    const bend = x - 46 - Math.min(60, Math.abs(y2 - y1) / 6);
+    return { d: `M${x},${y1} C${bend},${y1} ${bend},${y2} ${x - 3},${y2}`, lx: bend - 4, ly: (y1 + y2) / 2, anchor: "end" };
+  }
+  const x1 = edge.from.x + fw, y1 = edge.from.y, x2 = edge.to.x - 3, y2 = edge.to.y;
+  const mid = (x1 + x2) / 2;
+  if (Math.abs(y1 - y2) < 1) return { d: `M${x1},${y1} H${x2}`, lx: mid, ly: y1 - 8, anchor: "middle" };
+  return { d: `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`, lx: mid, ly: (y1 + y2) / 2 - 6, anchor: "middle" };
+}
+
+function nodeSVG(node) {
+  const [w, h] = SIZE[node.type];
+  const top = -h / 2;
+  let inner = "", cls = `gnode ${node.type}`;
+  if (node.type === "problem") {
+    inner = `<text x="14" y="${top + 22}" class="t2">INPUT PROBLEM</text>
+      <text x="14" y="${top + 41}" class="t1 mono">${escapeHTML(clip(TRACE.theorem_name || "", 22))}</text>
+      <text x="14" y="${top + 57}" class="t3">${escapeHTML(clip(`${problem.source_name} · ${problem.source_subset}`, 26))}</text>`;
+  } else if (node.type === "captain") {
+    inner = `<text x="16" y="${top + 26}" class="t2">ORCHESTRATOR</text>
+      <text x="16" y="${top + 48}" class="t1">Captain</text>
+      <text x="16" y="${top + 66}" class="t3">${escapeHTML(clip(`${TRACE.models?.orchestrator} · ${plural(captainCalls.length, "call")}`, 30))}</text>`;
+  } else if (node.type === "task") {
+    const task = node.ref;
+    const attempts = sum(task.agents.map(a => a.sequence.length));
+    cls += ` r-${task.role}`;
+    inner = `<rect class="stripe r-${task.role}" x="0" y="${top}" width="6" height="${h}" rx="0"></rect>
+      <text x="16" y="${top + 24}" class="t1${task.mono ? " mono" : ""}">${escapeHTML(clip(task.title, task.mono ? 27 : 26))}</text>
+      <text x="16" y="${top + 42}" class="t2">${escapeHTML(clip(task.subtitle, 36))}</text>
+      <text x="16" y="${top + 56}" class="t3">${plural(task.agents.length, "agent")} · ${plural(attempts, "step")}</text>`;
+    if (task.agents.length) {
+      const folded = collapsed.has(task.id);
+      inner += `<g class="toggle" data-toggle="${escapeHTML(task.id)}" transform="translate(${w},0)" role="button" aria-label="${folded ? "Expand" : "Collapse"} ${escapeHTML(task.title)}">
+        <circle r="10"></circle><text text-anchor="middle" y="4.5">${folded ? "+" : "−"}</text></g>`;
+    }
+  } else if (node.type === "agent") {
+    inner = `<circle cx="15" cy="0" r="4.5" class="stripe r-${node.role}"></circle>
+      <text x="27" y="4.5" class="t1 mono">${escapeHTML(node.title)}</text>`;
+  } else {
+    cls += ` s-${node.status}`;
+    const tone = { win: "s-win", ok: "s-ok", fail: "s-fail", rejected: "s-warn" }[node.status] || "";
+    inner = `<text x="12" y="${top + 20}" class="t1${node.mono ? " mono" : ""}">${escapeHTML(clip(node.title, 18))}</text>
+      <text x="12" y="${top + 35}" class="t2 status ${tone}">${escapeHTML(node.detail)}</text>
+      <text x="12" y="${top + 48}" class="t3">#${node.step.index} · ${node.time}</text>`;
+  }
+  if (node.id === selected) cls += " sel";
+  return `<g class="${cls}" data-node="${escapeHTML(node.id)}" transform="translate(${node.x},${node.y})" tabindex="0" role="button" aria-label="${escapeHTML(node.title || node.type)}">
+    <rect class="body" x="0" y="${top}" width="${w}" height="${h}" rx="${node.type === "agent" ? 21 : 8}"></rect>${inner}</g>`;
+}
+
+function render() {
+  current = layout();
+  const edgesSVG = current.edges.map(edge => {
+    const { d, lx, ly, anchor } = edgePath(edge);
+    const key = edge.path.join("→");
+    return `<path class="edge ${edge.cls}" data-edge="${escapeHTML(key)}" d="${d}" marker-end="url(#arrow)"></path>`
+      + (edge.label ? `<text class="elabel ${edge.cls}" data-edge="${escapeHTML(key)}" x="${lx}" y="${ly}" text-anchor="${anchor}">${edge.label}</text>` : "");
+  }).join("");
+  document.getElementById("viewport").innerHTML = `<g>${edgesSVG}</g><g>${current.nodes.map(nodeSVG).join("")}</g>`;
+  highlight();
+  applyView();
+}
+
+// Emphasises the selected node, its ancestors, and its descendants.
+function highlight() {
+  const svg = document.getElementById("graph");
+  svg.classList.toggle("focusing", !!selected);
+  if (!selected) return;
+  const lit = new Set([selected]);
+  const byId = new Map(current.nodes.map(n => [n.id, n]));
+  const node = byId.get(selected);
+  if (!node) return;
+  // Ancestors.
+  let cursor = node;
+  while (cursor) {
+    lit.add(cursor.id);
+    const parentId = cursor.type === "attempt" ? cursor.parent : cursor.type === "agent" ? cursor.parent
+      : cursor.type === "task" ? "captain" : cursor.type === "captain" ? "problem" : null;
+    cursor = parentId ? byId.get(parentId) : null;
+  }
+  // Descendants, and for an attempt the earlier rounds of its chain.
+  for (const n of current.nodes) {
+    if (n.id.startsWith(selected + "/")) lit.add(n.id);
+    if (node.type === "attempt" && n.parent === node.parent && n.x <= node.x) lit.add(n.id);
+    if (node.type === "captain") lit.add(n.id);
+  }
+  document.querySelectorAll("#viewport .gnode").forEach(g => g.classList.toggle("lit", lit.has(g.dataset.node)));
+  document.querySelectorAll("#viewport [data-edge]").forEach(e => {
+    const [a, b] = e.dataset.edge.split("→");
+    e.classList.toggle("lit", lit.has(a) && lit.has(b));
+  });
+}
+
+// Pan and zoom ------------------------------------------------------------------------
+
+const view = { x: 40, y: 40, k: 1 };
+
+function applyView() {
+  document.getElementById("viewport").setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`);
+}
+
+function zoomAt(factor, px, py) {
+  const k = Math.min(2.5, Math.max(0.15, view.k * factor));
+  view.x = px - (px - view.x) * (k / view.k);
+  view.y = py - (py - view.y) * (k / view.k);
+  view.k = k;
+  applyView();
+}
+
+function fit() {
+  const stage = document.getElementById("stage").getBoundingClientRect();
+  const xs = current.nodes.flatMap(n => [n.x, n.x + SIZE[n.type][0]]);
+  const ys = current.nodes.flatMap(n => [n.y - SIZE[n.type][1] / 2, n.y + SIZE[n.type][1] / 2]);
+  const minX = Math.min(...xs) - 80, maxX = Math.max(...xs) + 30;
+  const minY = Math.min(...ys) - 20, maxY = Math.max(...ys) + 20;
+  const top = 64, bottom = 64;
+  const k = Math.min(1.1, stage.width / (maxX - minX), (stage.height - top - bottom) / (maxY - minY));
+  view.k = Math.max(0.15, k);
+  view.x = (stage.width - (maxX - minX) * view.k) / 2 - minX * view.k;
+  view.y = top + (stage.height - top - bottom - (maxY - minY) * view.k) / 2 - minY * view.k;
+  applyView();
+}
+
+function installPanZoom() {
+  const stage = document.getElementById("stage");
+  const pointers = new Map();
+  let drag = null, pinch = null;
+  const local = e => { const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+
+  stage.addEventListener("wheel", event => {
+    event.preventDefault();
+    const [px, py] = local(event);
+    zoomAt(Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.0015)), px, py);
+  }, { passive: false });
+
+  stage.addEventListener("pointerdown", event => {
+    if (event.target.closest(".overlay")) return;
+    pointers.set(event.pointerId, local(event));
+    if (pointers.size === 1) {
+      drag = { start: local(event), origin: { x: view.x, y: view.y }, moved: false, target: event.target };
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinch = { distance: Math.hypot(a[0] - b[0], a[1] - b[1]), k: view.k };
+      drag = null;
+    }
+  });
+  stage.addEventListener("pointermove", event => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, local(event));
+    if (pinch && pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const distance = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      zoomAt(pinch.k * distance / pinch.distance / view.k, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+      return;
+    }
+    if (!drag) return;
+    const [x, y] = local(event);
+    const dx = x - drag.start[0], dy = y - drag.start[1];
+    if (!drag.moved && Math.hypot(dx, dy) > 4) {
+      drag.moved = true;
+      stage.classList.add("dragging");
+      stage.setPointerCapture(event.pointerId);
+    }
+    if (drag.moved) {
+      view.x = drag.origin.x + dx;
+      view.y = drag.origin.y + dy;
+      applyView();
+    }
+  });
+  const end = event => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (drag && !drag.moved && event.type === "pointerup") activate(drag.target);
+    if (pointers.size === 0) { drag = null; stage.classList.remove("dragging"); }
+  };
+  stage.addEventListener("pointerup", end);
+  stage.addEventListener("pointercancel", end);
+}
+
+// A click that was not a drag: fold a subtask, or open a node's record.
+function activate(target) {
+  const toggle = target.closest?.("[data-toggle]");
+  if (toggle) {
+    const id = toggle.dataset.toggle;
+    collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
+    render();
+    return;
+  }
+  const g = target.closest?.("[data-node]");
+  if (!g) {
+    selected = null;
+    render();
+    return;
+  }
+  selected = g.dataset.node;
+  render();
+  openNode(current.nodes.find(n => n.id === selected));
+}
+
+// Node records ------------------------------------------------------------------------
+
+function sequenceSteps(agents) {
+  return agents.flatMap(a => a.sequence.flatMap(n => {
+    const check = n.step.kind === "model_call" ? checkOfCall.get(n.step.index) : null;
+    return check ? [n.step, check] : [n.step];
+  })).sort((a, b) => a.index - b.index);
+}
+
+function taskBody(task) {
+  const parts = [];
+  if (task.algorithm) parts.push(`<p>${inlineCode(task.algorithm.description)}</p>`);
+  const form = eventsOf("formalization_compiled").at(-1);
+  const verdict = eventsOf("audit_verdict").at(-1);
+  if (task.key === "formalize" && form) {
+    parts.push(`<div class="tagblock"><span class="tagname">theorem statement</span>${leanHTML(form.statement || "")}</div>`,
+      `<details class="fold"><summary><b>Definitions</b></summary><div class="body">${leanHTML(form.definitions || "", new Set(), "tall")}</div></details>`);
+  }
+  if (task.key === "audit" && verdict) {
+    parts.push(`<p class="note">The auditor received only the Lean code, not the source.</p>`,
+      `<div class="tagblock"><span class="tagname">read-back</span><div class="prose">${mathHTML(verdict.readback || "")}</div></div>`);
+  }
+  if (task.key === "judge" && verdict) {
+    parts.push(`<div class="two"><div class="panel"><span class="eyebrow">Source statement</span><div class="prose">${mathHTML(propositionText())}</div></div>
+      <div class="panel"><span class="eyebrow">Read-back</span><div class="prose">${mathHTML(verdict.readback || "")}</div></div></div>`,
+      `<div style="display:flex;gap:8px;align-items:center">${stepResult(verdict)}</div><div class="prose">${mathHTML(verdict.issues || "")}</div>`);
+  }
+  if (task.key === "sketch" && finalSketch) {
+    parts.push(`<div class="tagblock"><span class="tagname">lemmas, delegated to solvers</span>${leanHTML((finalSketch.lemmas || []).map(l => l + " := by sorry").join("\n\n"))}</div>`,
+      `<div class="tagblock"><span class="tagname">main proof from the lemmas</span>${leanHTML(finalSketch.main_proof || "")}</div>`);
+  }
+  if (task.key === "lemma") {
+    const statement = (finalSketch?.lemmas || []).find(l => lemmaName(l) === task.lemma);
+    const win = lemmaWins.get(task.lemma);
+    const lemmaCalls = calls.filter(c => c.lemma === task.lemma);
+    const states = lemmaCalls.map(c => solverOutcome(c).state);
+    parts.push(`<div class="stats">
+        <div class="stat"><span class="v">${lemmaCalls.length}</span><span class="k">solver calls</span></div>
+        <div class="stat"><span class="v">${states.filter(s => s === "fail").length}</span><span class="k">with Lean errors</span></div>
+        <div class="stat"><span class="v">${states.filter(s => s === "late").length}</span><span class="k">discarded</span></div>
+        <div class="stat"><span class="v">${formatUSD(sum(lemmaCalls.map(c => c.cost_usd)))}</span><span class="k">cost</span></div></div>`);
+    if (statement) parts.push(`<div class="tagblock"><span class="tagname">statement</span>${leanHTML(statement)}</div>`);
+    if (win) parts.push(`<div class="tagblock"><span class="tagname">kept proof · solver ${win.worker}, round ${win.round} ${stepLink(win)}</span>${leanHTML(win.proof || "")}</div>`);
+    const uses = lemmaUses(win?.proof, task.lemma);
+    if (uses.length) parts.push(`<p class="muted">The proof uses ${uses.map(u => `<code>${escapeHTML(u)}</code>`).join(", ")}.</p>`);
+  }
+  if (task.key === "assemble") {
+    const checksResult = eventsOf("final_verification").at(-1)?.checks || {};
+    parts.push(`<table class="kv">${Object.entries(checksResult).filter(([, v]) => typeof v === "boolean")
+      .map(([k, v]) => `<tr><td class="num">${k}</td><td>${v ? `<span class="pill ok">pass</span>` : `<span class="pill fail">fail</span>`}</td></tr>`).join("")}</table>`);
+  }
+  parts.push(`<h3>Steps</h3>${stepList(sequenceSteps(task.agents))}`);
+  return parts.join("");
+}
+
+function openNode(node) {
+  if (!node) return;
+  if (node.type === "attempt") return showStep(node.step.index);
+  if (node.type === "problem") {
+    return showDrawer(summaryHead("Input problem", `<span><b>${escapeHTML(problem.uuid)}</b></span>`, "decision"),
+      `<div class="tagblock"><span class="tagname">informal statement</span><div class="prose">${mathHTML(problem.informal_statement || "")}</div></div>
+       <div class="tagblock"><span class="tagname">informal proof</span><div class="prose">${mathHTML(problem.informal_proof || "")}</div></div>`);
+  }
+  if (node.type === "captain") {
+    const delegated = tasks.filter(t => t.role !== "captain");
+    return showDrawer(summaryHead("Captain", `<span>model <b>${escapeHTML(TRACE.models?.orchestrator)}</b></span><span>calls <b>${captainCalls.length}</b></span><span>cost <b>${formatUSD(sum(captainCalls.map(c => c.cost_usd)))}</b></span>`, "captain"),
+      `<p>The captain is the orchestrating model. It performs the steps whose errors would propagate
+       to everything downstream (the formal statement, the faithfulness verdict, the proof plan) and
+       delegates ${plural(delegated.length, "subtask")} to cheaper worker models: the blind read-back
+       to the auditor and each lemma to ${cfg.workers ?? "N"} parallel solvers.</p>
+       <h3>Captain calls</h3>${stepList(captainCalls)}
+       <details class="fold"><summary><b>System prompt</b></summary><div class="body">${markdownHTML(TRACE.system_prompts?.captain || "")}</div></details>`);
+  }
+  if (node.type === "task") {
+    const task = node.ref;
+    return showDrawer(summaryHead(`${task.mono ? `<code>${escapeHTML(task.title)}</code>` : escapeHTML(task.title)}`,
+      `<span>${escapeHTML(task.subtitle)}</span>`, task.role), taskBody(task));
+  }
+  if (node.type === "agent") {
+    const task = tasks.find(t => t.id === node.parent);
+    const agent = task.agents.find(a => a.id === node.id);
+    const agentCalls = agent.sequence.map(a => a.step).filter(s => s.kind === "model_call");
+    return showDrawer(summaryHead(`${escapeHTML(agent.title)} · ${escapeHTML(task.title)}`,
+      `<span>${plural(agentCalls.length, "call")}</span><span>cost <b>${formatUSD(sum(agentCalls.map(c => c.cost_usd)))}</b></span>`, agent.role),
+      `${agent.role === "solver" ? `<p>One solver chain. Each round sends the lemma and, after a failure, the previous proof with Lean's error messages.</p>` : ""}
+       ${stepList(sequenceSteps([agent]))}`);
+  }
+}
+
+// Start -------------------------------------------------------------------------------
+
+function init() {
+  renderHeader();
+  installDrawerHandlers();
+  installPanZoom();
+  render();
+  fit();
+  const zoomCenter = factor => {
+    const r = document.getElementById("stage").getBoundingClientRect();
+    zoomAt(factor, r.width / 2, r.height / 2);
+  };
+  document.getElementById("zoom-in").addEventListener("click", () => zoomCenter(1.25));
+  document.getElementById("zoom-out").addEventListener("click", () => zoomCenter(0.8));
+  document.getElementById("fit").addEventListener("click", fit);
+  const collapseButton = document.getElementById("collapse");
+  collapseButton.addEventListener("click", () => {
+    const lemmaIds = tasks.filter(t => t.key === "lemma").map(t => t.id);
+    const allFolded = lemmaIds.every(id => collapsed.has(id));
+    lemmaIds.forEach(id => allFolded ? collapsed.delete(id) : collapsed.add(id));
+    collapseButton.textContent = allFolded ? "Collapse solvers" : "Expand solvers";
+    render();
+    fit();
+  });
+  const depsButton = document.getElementById("deps");
+  depsButton.addEventListener("click", () => {
+    showDeps = !showDeps;
+    depsButton.setAttribute("aria-pressed", showDeps);
+    render();
+  });
+  document.addEventListener("keydown", event => {
+    if (drawerOpen || event.metaKey || event.ctrlKey || event.altKey) return;
+    const node = event.target.closest?.("[data-node]");
+    if (node && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      activate(node);
+      document.querySelector(`[data-node="${CSS.escape(node.dataset.node)}"]`)?.focus();
+    } else if (event.key === "+" || event.key === "=") zoomCenter(1.25);
+    else if (event.key === "-") zoomCenter(0.8);
+    else if (event.key === "0") fit();
+    else if (event.key === "Escape" && selected) { selected = null; render(); }
+  });
+  window.addEventListener("resize", () => fit());
+}
+
+init();
+</script>
+</body>
+</html>
