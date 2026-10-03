@@ -1,5 +1,5 @@
 # AIProver harness configuration for the orchestration solvers.
-# Read by ../PartitionAndProve/AIProver_plugin (bin/aiprover) through $AIPROVER_CONFIG.
+# Read by AIProver/AIProver_plugin (bin/aiprover) through $AIPROVER_CONFIG.
 # The model is the local vLLM server of scripts/serve_local.sh; replace api_base and
 # model to drive the harness with another OpenAI-compatible endpoint.
 
@@ -20,16 +20,16 @@ ssh_options = []
 local_port = 18555
 
 [runtime]
-work_root = "~/workspace/orchestration/aiprover/work"
+work_root = "~/workspace/aiprover_prove2me_workspace/aiprover/work"
 # Concurrent harness rollouts; each holds a Lean server (~1.5 GB) and one model session.
 max_parallel = 2
 timeout_sec = 1800
 max_turns = 100
 
 [paths]
-# Lean v4.23.0 + Mathlib v4.23.0 + REPL (the JiatuBook evaluation environment).
-lean_project = "~/workspace/autoformalization-jtemb/tmpFolder/8d9a729d-dec6-452d-bb90-d63be139ee52/TmpProjDir"
+# Lean v4.23.0 + Mathlib v4.23.0 (37df177) + REPL + cslib (the JiatuBook evaluation environment).
+lean_project = "~/workspace/lean_projects/TmpProjDir"
 elan_home = "~/.elan"
-vibe_venv = "~/workspace/orchestration/aiprover/venv_vibe"
-mcp_venv = "~/workspace/orchestration/aiprover/venv_mcp"
-rg_dir = "~/workspace/orchestration/aiprover/bin"
+vibe_venv = "~/workspace/aiprover_prove2me_workspace/aiprover/venv_vibe"
+mcp_venv = "~/workspace/aiprover_prove2me_workspace/aiprover/venv_mcp"
+rg_dir = "~/workspace/aiprover_prove2me_workspace/aiprover/bin"

@@ -63,6 +63,17 @@ _DECL_RE = re.compile(r"^(?:@\[[^\]]*\]\s*)?(?:theorem|lemma)\s+([^\s:({\[]+)(.*
                       flags=re.S | re.M)
 
 
+def file_scoped(preamble: str) -> str:
+    """Rewrite `open X in` / `set_option o v in` as file-level commands.
+
+    The preamble is placed before every declaration of a sketch or solution
+    (lemmas, then `solution`), whereas a trailing `in` scopes a command to the
+    single declaration that follows it.
+    """
+    return re.sub(r"^(\s*(?:open|set_option)\b.*?)\s+in\s*$", r"\1",
+                  preamble, flags=re.M)
+
+
 def parse_statement(block: str) -> tuple[str, str, str]:
     """Split a statement block into (preamble, theorem name, signature)."""
     matches = list(_DECL_RE.finditer(block))
@@ -70,7 +81,7 @@ def parse_statement(block: str) -> tuple[str, str, str]:
         raise ValueError("the statement block must contain exactly one "
                          "`theorem <name> ... := by sorry` declaration")
     match = matches[0]
-    preamble = block[:match.start()].strip()
+    preamble = file_scoped(block[:match.start()].strip())
     return preamble, match.group(1), match.group(2)
 
 

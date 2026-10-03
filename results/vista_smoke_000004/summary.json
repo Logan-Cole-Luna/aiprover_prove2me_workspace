@@ -1,0 +1,91 @@
+{
+  "run_id": "vista_smoke_000004",
+  "uuid": "JiatuBook_BoundedArithmetic_000004",
+  "slug": "bounding_ite_base",
+  "config": {
+    "agents": {
+      "captain": {
+        "backend": "claude_cli",
+        "model": "claude-sonnet-5-5",
+        "timeout": 2400
+      },
+      "auditor": {
+        "backend": "claude_cli",
+        "model": "claude-sonnet-5-5"
+      },
+      "solver": {
+        "backend": "aiprover",
+        "model": "aiprover",
+        "config": "aiprover/aiprover_vista.toml",
+        "cli": "AIProver/AIProver_plugin/bin/aiprover",
+        "timeout": 1800,
+        "max_turns": 60
+      }
+    },
+    "workers": 2,
+    "max_repairs": 4,
+    "max_replans": 1,
+    "max_audit_rounds": 2,
+    "lean_parallel": 4,
+    "lean_timeout": 300
+  },
+  "status": "proved",
+  "formalization": {
+    "definitions": "inductive PVTerm : Type where\n  | var (n : Nat) : PVTerm\n  | eps : PVTerm\n  | s (b : Bool) (t : PVTerm) : PVTerm\n  | tr (t : PVTerm) : PVTerm\n  | cat (t u : PVTerm) : PVTerm\n  | smash (t u : PVTerm) : PVTerm\n  | itr (t u : PVTerm) : PVTerm\n  /-- function introduced by limited recursion on notation.\n      In g: parameters are var (i+2).  In h b: var 0 = y, var 1 = recursive value z, params var (i+2).\n      In k b: var 0 = y, params var (i+2).  \u03c3 gives the parameter arguments, last argument y. -/\n  | recf (g : PVTerm) (h k : Bool \u2192 PVTerm) (\u03c3 : Nat \u2192 PVTerm) (y : PVTerm) : PVTerm\n\nnamespace PVTerm\n\ndef subst (\u03c4 : Nat \u2192 PVTerm) : PVTerm \u2192 PVTerm\n  | var n => \u03c4 n\n  | eps => eps\n  | s b t => s b (subst \u03c4 t)\n  | tr t => tr (subst \u03c4 t)\n  | cat t u => cat (subst \u03c4 t) (subst \u03c4 u)\n  | smash t u => smash (subst \u03c4 t) (subst \u03c4 u)\n  | itr t u => itr (subst \u03c4 t) (subst \u03c4 u)\n  | recf g h k \u03c3 y => recf g h k (fun n => subst \u03c4 (\u03c3 n)) (subst \u03c4 y)\n\ndef upd (\u03c3 : Nat \u2192 PVTerm) (n : Nat) (t : PVTerm) : Nat \u2192 PVTerm :=\n  fun k => if k = n then t else \u03c3 k\n\n/-- the derived function f_1(z,y) = ITR(\u03b5, z \u2218 y) -/\ndef f1 (z y : PVTerm) : PVTerm := itr eps (cat z y)\n\nend PVTerm\n\nopen PVTerm in\n/-- `PVDeriv m a b` : the equation a = b is derivable in PV, where limited recursions\n    are only licensed when their bounding equation is derivable at order m-1. -/\ninductive PVDeriv : Nat \u2192 PVTerm \u2192 PVTerm \u2192 Prop where\n  | refl (m : Nat) (a : PVTerm) : PVDeriv m a a\n  | symm {m : Nat} {a b : PVTerm} : PVDeriv m a b \u2192 PVDeriv m b a\n  | trans {m : Nat} {a b c : PVTerm} : PVDeriv m a b \u2192 PVDeriv m b c \u2192 PVDeriv m a c\n  | lift {m : Nat} {a b : PVTerm} : PVDeriv m a b \u2192 PVDeriv (m+1) a b\n  | subst {m : Nat} {a b : PVTerm} (\u03c4 : Nat \u2192 PVTerm) :\n      PVDeriv m a b \u2192 PVDeriv m (PVTerm.subst \u03c4 a) (PVTerm.subst \u03c4 b)\n  | congS {m : Nat} (b : Bool) {a a' : PVTerm} : PVDeriv m a a' \u2192 PVDeriv m (s b a) (s b a')\n  | congTr {m : Nat} {a a' : PVTerm} : PVDeriv m a a' \u2192 PVDeriv m (tr a) (tr a')\n  | congCat {m : Nat} {a a' c c' : PVTerm} :\n      PVDeriv m a a' \u2192 PVDeriv m c c' \u2192 PVDeriv m (cat a c) (cat a' c')\n  | congSmash {m : Nat} {a a' c c' : PVTerm} :\n      PVDeriv m a a' \u2192 PVDeriv m c c' \u2192 PVDeriv m (smash a c) (smash a' c')\n  | congItr {m : Nat} {a a' c c' : PVTerm} :\n      PVDeriv m a a' \u2192 PVDeriv m c c' \u2192 PVDeriv m (itr a c) (itr a' c')\n  | congRec {m : Nat} (g : PVTerm) (h k : Bool \u2192 PVTerm) (\u03c3 \u03c3' : Nat \u2192 PVTerm) (y y' : PVTerm) :\n      (\u2200 n, PVDeriv m (\u03c3 n) (\u03c3' n)) \u2192 PVDeriv m y y' \u2192\n      PVDeriv m (recf g h k \u03c3 y) (recf g h k \u03c3' y')\n  | catEps (m : Nat) : PVDeriv m (cat (var 0) eps) (var 0)\n  | catS (m : Nat) (b : Bool) :\n      PVDeriv m (cat (var 0) (s b (var 1))) (s b (cat (var 0) (var 1)))\n  | trEps (m : Nat) : PVDeriv m (tr eps) eps\n  | trS (m : Nat) (b : Bool) : PVDeriv m (tr (s b (var 0))) (var 0)\n  | itrEps (m : Nat) : PVDeriv m (itr (var 0) eps) (var 0)\n  | itrS (m : Nat) (b : Bool) :\n      PVDeriv m (itr (var 0) (s b (var 1))) (tr (itr (var 0) (var 1)))\n  | smashEps (m : Nat) : PVDeriv m (smash (var 0) eps) eps\n  | smashS (m : Nat) (b : Bool) :\n      PVDeriv m (smash (var 0) (s b (var 1))) (cat (var 0) (smash (var 0) (var 1)))\n  | recEps {m : Nat} (g : PVTerm) (h k : Bool \u2192 PVTerm) (\u03c3 : Nat \u2192 PVTerm) :\n      (\u2200 b, PVDeriv m (itr (h b) (cat (var 1) (k b))) eps) \u2192\n      PVDeriv (m+1) (recf g h k \u03c3 eps) (PVTerm.subst \u03c3 g)\n  | recS {m : Nat} (g : PVTerm) (h k : Bool \u2192 PVTerm) (\u03c3 : Nat \u2192 PVTerm) (b : Bool) (y : PVTerm) :\n      (\u2200 b, PVDeriv m (itr (h b) (cat (var 1) (k b))) eps) \u2192\n      PVDeriv (m+1) (recf g h k \u03c3 (s b y))\n        (PVTerm.subst (upd (upd \u03c3 0 y) 1 (recf g h k \u03c3 y)) (h b))\n  /-- structural induction rule; induction variable is var 0, var 1 in h stands for f_j(x,y) -/\n  | induct {m : Nat} (F1 F2 g : PVTerm) (h : Bool \u2192 PVTerm) :\n      PVDeriv m (PVTerm.subst (PVTerm.upd var 0 eps) F1) g \u2192\n      PVDeriv m (PVTerm.subst (PVTerm.upd var 0 eps) F2) g \u2192\n      (\u2200 b, PVDeriv m (PVTerm.subst (PVTerm.upd var 0 (s b (var 0))) F1)\n              (PVTerm.subst (PVTerm.upd var 1 F1) (h b))) \u2192\n      (\u2200 b, PVDeriv m (PVTerm.subst (PVTerm.upd var 0 (s b (var 0))) F2)\n              (PVTerm.subst (PVTerm.upd var 1 F2) (h b))) \u2192\n      PVDeriv m F1 F2",
+    "preamble": "open PVTerm",
+    "theorem_name": "bounding_ite_base",
+    "signature": " : \u2203 m : Nat, PVDeriv m (f1 (var 0) eps) eps ",
+    "notes": "PV is encoded as an inductive derivability relation `PVDeriv m a b` on terms `PVTerm` (variables are naturals; constants/symbols \u03b5, s_i, TR, \u2218, #, ITR). Rules: reflexivity, symmetry, transitivity, congruence (L0\u2013L3), substitution (L4), the defining axioms for \u2218, TR, ITR, #, and the structural-induction rule (F1, F2 with common g, h_i). Limited recursion is the term former `recf`; its defining equations are rules at order m+1 that require derivability at order m of ITR(h_i, z \u2218 k_i) = \u03b5 (z = var 1). `lift` lets lower-order proofs be used at higher order. The source function f_1 of the proposition is taken as f_1(z,y) = ITR(\u03b5, z \u2218 y) (the bound equation instance used in the proof), defined by composition as `f1`. The statement says f_1(z, \u03b5) = \u03b5 is derivable at some order, with z = var 0.",
+    "readback": "The declaration asserts that there is a natural number $m$ (a single existential; $m=0$ is allowed, and no bound on $m$ is given) such that the formal equation\n\n$$\\\\mathrm{ITR}(\\\\varepsilon,\\\\; x_0 \\\\frown \\\\varepsilon) \\\\;=\\\\; \\\\varepsilon$$\n\nis derivable at order $m$ in the formal equational system defined below. Here $x_0$ is the formal variable with index $0$. It is a free syntactic variable of the term language, not a quantified object. The left side is $f_1(x_0,\\\\varepsilon)$, where $f_1(z,y) := \\\\mathrm{ITR}(\\\\varepsilon,\\\\; z\\\\frown y)$. The claim is purely about derivability of this pair of terms, not about any semantic or model-theoretic truth.\n\n**Terms.** Terms are built from the following:\n- variables $x_n$ for $n\\\\in\\\\mathbb{N}$;\n- a constant $\\\\varepsilon$;\n- two unary successors $s_b(t)$, for $b\\\\in\\\\{\\\\text{false},\\\\text{true}\\\\}$;\n- a unary $\\\\mathrm{tr}(t)$;\n- binary operations $t\\\\frown u$ (concatenation), $t\\\\,\\\\#\\\\,u$ (smash), and $\\\\mathrm{ITR}(t,u)$;\n- a limited-recursion constructor $\\\\mathrm{rec}(g,h,k,\\\\sigma,y)$. Here $g$ is a term, $h,k$ are each a pair of terms indexed by $b$, $\\\\sigma$ assigns a term to each variable index (the parameters), and $y$ is a term.\n\n**The relation $\\\\mathrm{PVDeriv}_m(a,b)$.** It is the least relation, indexed by $m\\\\in\\\\mathbb{N}$, closed under the following rules.\n- *Equivalence and order.* It is reflexive, symmetric and transitive at each fixed $m$. Derivability at $m$ implies derivability at $m+1$ (lifting), so the relation is monotone in $m$.\n- *Substitution.* If $a=b$ is derivable at $m$, then so is $\\\\tau(a)=\\\\tau(b)$ for any simultaneous substitution $\\\\tau$ of terms for variables.\n- *Congruence.* Equality is preserved under $s_b$, $\\\\mathrm{tr}$, $\\\\frown$, $\\\\#$ and $\\\\mathrm{ITR}$ in every argument. For $\\\\mathrm{rec}$, it is preserved when the parameter assignments are pointwise derivably equal and the final argument $y$ is derivably equal. The $g,h,k$ components of $\\\\mathrm{rec}$ stay fixed.\n- *Defining equations, all at every $m$.* In each, $b$ ranges over both Booleans.\n  - $x_0\\\\frown\\\\varepsilon=x_0$.\n  - $x_0\\\\frown s_b(x_1)=s_b(x_0\\\\frown x_1)$.\n  - $\\\\mathrm{tr}(\\\\varepsilon)=\\\\varepsilon$.\n  - $\\\\mathrm{tr}(s_b(x_0))=x_0$.\n  - $\\\\mathrm{ITR}(x_0,\\\\varepsilon)=x_0$.\n  - $\\\\mathrm{ITR}(x_0,s_b(x_1))=\\\\mathrm{tr}(\\\\mathrm{ITR}(x_0,x_1))$.\n  - $x_0\\\\#\\\\varepsilon=\\\\varepsilon$.\n  - $x_0\\\\#s_b(x_1)=x_0\\\\frown(x_0\\\\#x_1)$.\n- *Limited recursion, available only at order $m+1$.* This requires as hypothesis that, at order $m$, $\\\\mathrm{ITR}(h_b,\\\\;x_1\\\\frown k_b)=\\\\varepsilon$ is derivable for both $b$. Given that:\n  - $\\\\mathrm{rec}(g,h,k,\\\\sigma,\\\\varepsilon)=g[\\\\sigma]$, where $g[\\\\sigma]$ is $g$ with $\\\\sigma$ substituted for its variables;\n  - $\\\\mathrm{rec}(g,h,k,\\\\sigma,s_b(y))=h_b[x_0\\\\mapsto y,\\\\;x_1\\\\mapsto \\\\mathrm{rec}(g,h,k,\\\\sigma,y),\\\\;x_n\\\\mapsto\\\\sigma(n)\\\\text{ for }n\\\\ge 2]$. In this substitution, variables other than $x_0,x_1$ are sent to $\\\\sigma(n)$, so for $n\\\\ge2$ the variable $x_n$ is replaced by $\\\\sigma(n)$.\n- *Structural induction, at the same order $m$.* For terms $F_1,F_2,g$ and a pair $h_b$, suppose all of the following are derivable at $m$:\n  - $F_1[x_0\\\\mapsto\\\\varepsilon]=g$ and $F_2[x_0\\\\mapsto\\\\varepsilon]=g$;\n  - for each $b$, $F_i[x_0\\\\mapsto s_b(x_0)]=h_b[x_1\\\\mapsto F_i]$, for $i=1$ and for $i=2$.\n\n  Then $F_1=F_2$ is derivable at $m$. In these substitutions, variables not mentioned are left unchanged, and the recursive value is represented by $x_1$ in $h_b$.\n\n**Edge cases.** The theorem has no hypotheses. Since an $m$ is only asserted to exist, $m=0$ already suffices if a derivation exists at that order. By lifting, any larger $m$ then works too. Whether the equation is derivable depends on the rules above, in particular on whether the induction rule (or other rules) can reach $\\\\mathrm{ITR}(\\\\varepsilon,x_0\\\\frown\\\\varepsilon)=\\\\varepsilon$. Nothing in the statement ties $x_0$ to any particular value.",
+    "verdict": "FAITHFUL",
+    "issues": "None. The statement is faithful. The details I checked:\n\n- **Target.** `f1 (var 0) eps` unfolds to `itr eps (cat (var 0) eps)`. This is ITR(\u03b5, z\u2218\u03b5), which is f_1(z,\u03b5) as the proof uses it. The conclusion is `eps`, and the free variable `var 0` plays the role of z.\n- **Derivability.** The claim is stated as derivability in an inductive proof system, as required, and not as truth in a model. The existential over the order m is appropriate because PV is the union over all orders.\n- **Rules.** All the source's rules are present:\n  - reflexivity, symmetry and transitivity;\n  - congruence;\n  - substitution;\n  - the defining axioms for \u2218, TR, ITR and #;\n  - limited recursion, licensed at order m+1 by a bounding equation at order m;\n  - structural induction.\n- **Derivability of the target.** The target is derivable in this system. Take F1 = ITR(\u03b5, x0), F2 = \u03b5, g = \u03b5 and h_b = TR(x1). The base and step equations follow from the itrS, trEps and congruence rules. This matches the source proof, so the system is not too weak.\n- **Quirk, not a defect.** The induction rule takes arbitrary terms F1 and F2, not only functions built by recursion. It also reuses `var 1` as the recursive value. This is the standard equational-theory presentation and does not affect this proposition."
+  },
+  "checks": {
+    "compiles": true,
+    "no_sorry": true,
+    "standard_axioms_only": true,
+    "axioms": [],
+    "errors": [],
+    "module_build": true,
+    "statement_matches": true,
+    "verified": true
+  },
+  "sketch": {
+    "main_proof": "exact \u27e80, PVDeriv.trans (PVDeriv.congItr (PVDeriv.refl 0 eps) (PVDeriv.catEps 0)) itr_eps_all\u27e9",
+    "lemmas": [
+      {
+        "name": "itr_eps_all",
+        "statement": "theorem itr_eps_all : PVDeriv 0 (itr eps (var 0)) eps",
+        "helpers": "",
+        "proof": "  apply PVDeriv.induct (m := 0) (F1 := itr eps (var 0)) (F2 := eps) (h := fun b => tr (var 1)) (g := eps)\n  \u00b7 \n    have h := PVDeriv.itrEps 0\n    apply PVDeriv.subst (fun n => if n = 0 then eps else var n) h\n  \u00b7 \n    exact PVDeriv.refl 0 eps\n  \u00b7 \n    \n    intro b\n    have h := PVDeriv.itrS 0 b\n    apply PVDeriv.subst (fun n => if n = 0 then eps else if n = 1 then var 0 else var n) h\n  \u00b7 \n    \n    intro b\n    exact (PVDeriv.trEps 0).symm",
+        "proved": true,
+        "last_errors": ""
+      }
+    ]
+  },
+  "wall_seconds": 2159.0,
+  "phase_seconds": {
+    "formalize": 98.5,
+    "sketch": 192.9,
+    "prove": 1831.2,
+    "assemble": 36.4
+  },
+  "calls_by_role": {
+    "captain": 11,
+    "auditor": 1,
+    "solver": 1
+  },
+  "usage_by_model": {
+    "claude-haiku-4-5-20251001": {
+      "input_tokens": 46228,
+      "output_tokens": 179,
+      "cost_usd": 0.047123
+    },
+    "claude-sonnet-5-5": {
+      "input_tokens": 24,
+      "output_tokens": 25856,
+      "cost_usd": 0.48094
+    }
+  },
+  "lean_attempt_files": 12
+}

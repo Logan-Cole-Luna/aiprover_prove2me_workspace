@@ -110,6 +110,64 @@
   during their AIProver jobs. The run was also interrupted once by the tool
   time limit and resumed from step 22 (pending replan).
 
+## 2026-10-02: Deployment for the AIProver model on Vista
+
+- Repository `aiprover_prove2me_workspace` with the AIProver submodule
+  (`PrithwishJana/AIProver` at `e36b1c7`) provisioned on the orchestration VM:
+  Lean project `~/workspace/lean_projects/TmpProjDir` (Lean v4.23.0, Mathlib
+  `37df177`, REPL, cslib `cd368e6`), `aiprover/venv_vibe`, `aiprover/venv_mcp`
+  (three lean-lsp-mcp patches), ripgrep; `doctor` 13/14 PASS on both
+  configurations, the endpoint row pending the server.
+- `prove2me_workspace/`: clone of `prove2me/prove2me_workspace` with the same
+  requires and manifest as the AIProver project and its `.lake/packages`
+  linked; `Solutions.SmokeTest` builds in 4.5 s.
+- JiatuBook validation set copied to `data/` (from PartitionAndProve
+  `feature/SAM`); `run.py` defaults to it.
+- `scripts/serve_aiprover_vista.sbatch` and `submit_aiprover_vista.sh`: Ray
+  cluster across `gh` nodes in `$WORK/containers/vllm-gh200.sif`, vLLM tensor
+  parallel over the nodes (default 2), Mistral tool-call and reasoning
+  parsers, handoff file `$SCRATCH/servers/aiprover_server.txt`, server restart
+  inside the allocation.
+- `aiprover/aiprover_vista.toml` (ssh mode over `~/.ssh/vista.sock`, handoff
+  followed) and `orchestrator/config_aiprover_vista.json` (captain
+  `claude-opus-5-5`, auditor `claude-haiku-4-5`, solvers AIProver at 4
+  samples, 100 turns, 5400 s). Captain and auditor probes answer through
+  the account session (Claude Code 2.1.288 in `~/.local/bin`).
+- `orchestrator/config_aiprover_vista_smoke.json`: smoke configuration with
+  captain and auditor `claude-sonnet-5-5` and AIProver solvers on the base
+  checkpoint `/work/11428/pjana/leanstral_hf_fused` (222.4 GiB bf16, fused
+  experts): 2 samples, 60 turns, 1800 s per rollout.
+
+## 2026-10-02: AIProver server on Vista, launch checks
+
+- Container `$WORK/containers/vllm-gh200.sif`: vLLM 0.27.1, torch 2.13.0
+  (cu130). Two-node Ray cluster and TP=2 workers form; MLA attention backend
+  `FLASH_ATTN_MLA` is selected without overrides.
+- Server arguments for the Leanstral checkpoints: `--tokenizer-mode mistral`
+  (tekken.json only), `--config-format hf --load-format safetensors`, and
+  `--limit-mm-per-prompt '{"image": 0}'` (text-only mode; the Pixtral
+  processor is not profiled).
+- vLLM's deepseek_v2 loader reads per-expert tensors only. The fused
+  checkpoints (`leanstral_hf_fused`, `leanstral_tiny_fused`) are converted by
+  `scripts/unpack_experts_vista.sbatch` (CPU `gg` node, apptainer) into
+  `$SCRATCH/aiprover_ckpt/leanstral_{tiny,base}_unpacked`; config.json and
+  tokenizer files are copied unchanged.
+- Base checkpoint served on 2 `gh-dev` nodes (job 1044066): 68.5 GiB of
+  weights per GPU with 42 GiB per rank offloaded, load 325 s, KV cache
+  559k tokens (12 GiB per GPU); single-request decode about 14 tokens/s.
+  `doctor` 15/15 PASS through the tunnel.
+- `structures.file_scoped`: `open X in` / `set_option ... in` in a
+  statement preamble become file-level commands, since the preamble precedes
+  every lemma and `solution` in sketches and solutions; applied on parse and
+  on resume.
+- Run `vista_smoke_000004` (Sonnet 5.5 captain and auditor, AIProver base
+  solvers): formalization FAITHFUL in round 0; sketch with one lemma
+  (`itr_eps_all`) after the preamble fix; `itr_eps_all` proved by the
+  AIProver base model (both samples verified; sample 1 in 23 turns, 1557 s).
+  Solution verified: compiles, no `sorry`, no axioms, module build matches
+  the theorem. Wall time 2159 s over three invocations; calls captain 11,
+  auditor 1, solver 1.
+
 ## Todo
 
 - Render `trace.html` automatically at the end of each run.
@@ -118,9 +176,14 @@
   Qwen3-4B-Instruct on `000004`.
 - Resume `jiatu_000020_sonnet_haiku` (or fork `local_000020` at `prove`
   with another solver) to complete the 000020 attempt.
-- Run the AIProver backend with the large model: set `api_base`/`model` in
-  `aiprover/aiprover.toml`; drop the `VIBE_MODELS` override and
-  `AGENT_THINKING=off` from `config_aiprover.json`.
+- Vista: set the AIProver checkpoint path; run `check_rl_compat.py` on it;
+  submit `scripts/submit_aiprover_vista.sh <ckpt> gh-dev 2` as a launch check,
+  then on `gh`; confirm `$SCRATCH` resolves to `/scratch/11757/loganluna`
+  (handoff path in `aiprover_vista.toml`).
+- VM: open `~/.ssh/vista.sock`; `doctor --full` with
+  `aiprover/aiprover_vista.toml` (live rollout); run `vista_000004`.
+- Compare `--cpu-offload-gb` and `QUANTIZATION=fp8` at 2 nodes against bf16
+  at 4 nodes (throughput, solve rate).
 - Replan prompt: require the captain to split a failed lemma rather than
   restate it.
 
@@ -131,6 +194,10 @@
 - Pluggable agent layer; local vLLM serving; run `local_000004`.
 - Resumable runs with automatic restart after infrastructure failures.
 - AIProver harness provisioned and integrated as the `aiprover` solver backend.
+- Orchestration VM provisioned for the AIProver model on Vista; server job and
+  configurations written.
+- `vista_smoke_000004` proved and verified with the AIProver base model on
+  Vista (Sonnet 5.5 captain).
 
 ## Decisions
 
@@ -166,6 +233,18 @@
 
 - AIProver runs with its own configuration file through `$AIPROVER_CONFIG`;
   the plugin is used in place and not copied.
+- Model on Vista, everything else on the VM: compute nodes have no egress
+  (captain calls) and the harness runs on the calling machine.
+- Two-node TP: the bf16 checkpoint (~222 GiB) exceeds 2 x 95 GiB HBM; the
+  surplus weights per rank are offloaded to Grace memory by default, which
+  preserves the measured numerics; fp8 is an option.
+- One Mathlib build (`~/workspace/lean_projects/TmpProjDir`) serves the
+  harness and the orchestrator's workspace.
+- Routing is kept as declared by the fused checkpoint's config
+  (`topk_method: noaux_tc`, `scoring_func: softmax`, one group, top-4,
+  normalized): transformers' `Mistral4TopkRouter` applies a softmax.
+- Trained (fused) checkpoints are served after the same per-expert
+  conversion.
 
 ## Issues
 
@@ -185,6 +264,11 @@
 - `AIProver_plugin/setup.sh` (PartitionAndProve): the embedded Python of the
   scratch `warm_text` patch has literal newlines in place of `\n` escapes and
   does not parse; the patch was applied to `aiprover/venv_mcp` directly.
+- `~/workspace/autoformalization-jtemb` links to `/home/pjana`, which is not
+  readable here; the Lean project is built at `~/workspace/lean_projects`.
+- `/work/11428/pjana/leanstral_hf_unpacked` does not exist and the
+  `/scratch/11428/pjana` copies are not readable from this account; the
+  per-expert copy is produced locally.
 - AIProver sessions are long (up to `timeout` per sample) and the local server
   holds about one full-length session; 8 lemmas at 2 samples each take over an
   hour.

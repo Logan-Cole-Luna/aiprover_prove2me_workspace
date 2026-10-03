@@ -23,8 +23,9 @@ from .claude_cli import get_account_status
 from .pipeline import Config, Orchestration
 
 ROOT = Path(__file__).resolve().parent.parent
-DATASET = (ROOT.parent / "PartitionAndProve" / "JiatuBookFormalization"
-           / "dataset" / "val_JiatuBook_unlabelled.jsonl")
+# JiatuBook validation split, copied from PartitionAndProve
+# (`feature/SAM:JiatuBookFormalization/dataset/`).
+DATASET = ROOT / "data" / "val_JiatuBook_unlabelled.jsonl"
 
 
 def load_problem(dataset: Path, uuid: str) -> dict:

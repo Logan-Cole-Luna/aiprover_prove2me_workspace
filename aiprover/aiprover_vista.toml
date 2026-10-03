@@ -1,0 +1,55 @@
+# AIProver harness configuration: AIProver model served on TACC Vista.
+# Read by AIProver/AIProver_plugin (bin/aiprover) through $AIPROVER_CONFIG;
+# used by orchestrator/config_aiprover_vista.json.
+#
+# The model runs on Vista compute nodes (scripts/serve_aiprover_vista.sbatch);
+# the harness, Lean and the lean-lsp tools run on this machine. The tunnel
+# rides an SSH ControlMaster opened by hand (TACC requires MFA):
+#   ssh -fNM -S ~/.ssh/vista.sock -o ControlPersist=12h \
+#       -o ServerAliveInterval=60 loganluna@vista.tacc.utexas.edu
+# The compute node and port are read from the handoff file the server job
+# writes, so a resubmitted server is followed without editing this file.
+
+[endpoint]
+mode = "ssh"
+ssh_host = "vista.tacc.utexas.edu"
+ssh_user = "loganluna"
+ssh_port = 22
+control_socket = "~/.ssh/vista.sock"
+ssh_options = []
+server_handoff = "/scratch/11757/loganluna/servers/aiprover_server.txt"
+# Fallback address when the handoff file is unreadable (empty = none).
+remote_host = ""
+remote_port = 8060
+local_port = 18555
+# Unused in ssh mode; present because the CLI reads every endpoint key.
+api_base = "http://127.0.0.1:18555/v1"
+api_key = "EMPTY"
+# Served model id; empty = the first id /v1/models reports.
+model = "aiprover"
+
+[runtime]
+work_root = "~/workspace/aiprover_prove2me_workspace/aiprover/work"
+# Concurrent rollouts on this machine; each holds a Lean server (~1.5 GB) and
+# peaks near 5 GB while compiling.
+max_parallel = 8
+# Champion measurement settings (100 turns / 5400 s); the harness derives its
+# time fences from timeout_sec.
+timeout_sec = 5400
+max_turns = 100
+
+[paths]
+# Lean v4.23.0 + Mathlib v4.23.0 (37df177) + REPL + cslib.
+lean_project = "~/workspace/lean_projects/TmpProjDir"
+elan_home = "~/.elan"
+vibe_venv = "~/workspace/aiprover_prove2me_workspace/aiprover/venv_vibe"
+mcp_venv = "~/workspace/aiprover_prove2me_workspace/aiprover/venv_mcp"
+rg_dir = "~/workspace/aiprover_prove2me_workspace/aiprover/bin"
+
+[helpers]
+# expand / backtranslate / ask: "auto" uses claude -p inside Claude Code and
+# the AIProver server otherwise.
+backend = "auto"
+claude_model = ""
+codex_sandbox = "read-only"
+timeout_sec = 900

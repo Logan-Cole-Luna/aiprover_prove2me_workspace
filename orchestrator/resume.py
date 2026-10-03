@@ -9,7 +9,8 @@ from its last completed step instead of from the beginning.
 from dataclasses import dataclass, field
 
 from . import prompts
-from .structures import Formalization, Sketch, normalize, parse_lemmas, parse_statement
+from .structures import (Formalization, Sketch, file_scoped, normalize, parse_lemmas,
+                         parse_statement)
 
 
 @dataclass
@@ -62,7 +63,8 @@ def restore_state(document: dict) -> ResumeState:
         event = step["event"]
         if event == "formalization_compiled":
             preamble, name, signature = parse_statement(step["statement"])
-            state.formalization = Formalization(step["definitions"], step["preamble"],
+            state.formalization = Formalization(step["definitions"],
+                                                file_scoped(step["preamble"]),
                                                 name, signature, notes=step.get("notes", ""))
             state.audited = False
             state.formalize_feedback = ""

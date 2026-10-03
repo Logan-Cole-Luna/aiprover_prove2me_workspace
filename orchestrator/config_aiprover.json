@@ -17,7 +17,7 @@
       "backend": "aiprover",
       "model": "qwen3-4b-instruct",
       "config": "aiprover/aiprover.toml",
-      "cli": "../PartitionAndProve/AIProver_plugin/bin/aiprover",
+      "cli": "AIProver/AIProver_plugin/bin/aiprover",
       "timeout": 1200,
       "max_turns": 100,
       "env": {
