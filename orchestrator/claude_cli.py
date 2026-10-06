@@ -14,6 +14,7 @@ project configuration leaks into the model context.
 import argparse
 import json
 import logging
+import os
 import re
 import subprocess
 import tempfile
@@ -67,7 +68,7 @@ def _is_retryable(error_text: str) -> bool:
 
 def invoke_once(prompt: str, model: str, system_prompt: str,
                 timeout: int = REQUEST_TIMEOUT_S, effort: str = "",
-                ) -> tuple[str, dict, str | None]:
+                max_output_tokens: int = 0) -> tuple[str, dict, str | None]:
     """One `claude -p` call. Returns (text, payload, error); error is None on success.
 
     The CLI reports errors as JSON on stdout while exiting non-zero, so stdout
@@ -83,10 +84,13 @@ def invoke_once(prompt: str, model: str, system_prompt: str,
            "--system-prompt", system_prompt]
     if effort and effort != "default":
         cmd += ["--effort", effort]
+    # The CLI's default reply limit is replaced when the agent sets one.
+    env = {**os.environ, "CLAUDE_CODE_MAX_OUTPUT_TOKENS": str(max_output_tokens)} \
+        if max_output_tokens else None
     CLI_WORKDIR.mkdir(parents=True, exist_ok=True)
     try:
         proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
-                              timeout=timeout, cwd=CLI_WORKDIR)
+                              timeout=timeout, cwd=CLI_WORKDIR, env=env)
     except subprocess.TimeoutExpired:
         return "", {}, f"claude CLI timed out after {timeout}s"
     except FileNotFoundError:

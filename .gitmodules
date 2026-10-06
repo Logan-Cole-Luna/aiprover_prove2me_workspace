@@ -1,3 +1,4 @@
 [submodule "AIProver"]
 	path = AIProver
 	url = https://github.com/PrithwishJana/AIProver
+	branch = main

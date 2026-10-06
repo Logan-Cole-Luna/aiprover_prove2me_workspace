@@ -39,3 +39,7 @@ logs/
 # Editor
 .vscode/
 .idea/
+
+# Query server: user tokens and job state
+server/tokens.json
+server/state/

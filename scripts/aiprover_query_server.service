@@ -1,0 +1,32 @@
+# systemd user unit for the orchestration query server (server/app.py).
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp scripts/aiprover_query_server.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now aiprover_query_server
+# `loginctl enable-linger loganluna` keeps it running without a login session.
+[Unit]
+Description=AIProver orchestration query server
+After=network-online.target
+
+[Service]
+WorkingDirectory=/home/loganluna/workspace/aiprover_prove2me_workspace
+Environment=PATH=/home/loganluna/lean_env/bin:/home/loganluna/.elan/bin:/home/loganluna/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Remove to require tokens from server/tokens.json.
+Environment=QUERY_SERVER_AUTH=off
+# Model server jobs: gh (up to 48 h) so a run is not cut off at gh-dev's 2 h
+# limit; the server cancels the job after 15 min without runs.
+Environment=VISTA_PARTITION=gh
+Environment=VISTA_WALL_TIME=12:00:00
+# Runs in progress at once; they share the model server and AIProver's
+# max_parallel sessions (aiprover/*.toml).
+Environment=QUERY_SERVER_MAX_RUNS=2
+ExecStart=/home/loganluna/lean_env/bin/python3 -m uvicorn server.app:app --host 0.0.0.0 --port 8443 --workers 1
+# Runs are started in their own session; on a restart the server adopts or
+# resumes them, so only the server process is stopped.
+KillMode=process
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,18 @@
+# systemd user unit for the reasoning proxy (server/reasoning_proxy.py), which
+# records the AIProver model's reasoning for served runs.
+# Install next to aiprover_query_server.service:
+#   cp scripts/aiprover_reasoning_proxy.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now aiprover_reasoning_proxy
+[Unit]
+Description=AIProver reasoning proxy
+After=network-online.target
+
+[Service]
+WorkingDirectory=/home/loganluna/workspace/aiprover_prove2me_workspace
+ExecStart=/home/loganluna/lean_env/bin/python3 -m server.reasoning_proxy --listen 18565 --upstream http://127.0.0.1:18555
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

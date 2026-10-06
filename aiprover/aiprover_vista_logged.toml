@@ -1,17 +1,11 @@
-# AIProver harness configuration: AIProver model served on TACC Vista.
-# Read by AIProver/AIProver_plugin (bin/aiprover) through $AIPROVER_CONFIG;
-# used by orchestrator/config_aiprover_vista.json.
-#
-# The model runs on Vista compute nodes (scripts/serve_aiprover_vista.sbatch);
-# the harness, Lean and the lean-lsp tools run on this machine. The tunnel
-# rides an SSH ControlMaster opened by hand (TACC requires MFA):
-#   ssh -fNM -S ~/.ssh/vista.sock -o ControlPersist=12h \
-#       -o ServerAliveInterval=60 loganluna@vista.tacc.utexas.edu
-# The compute node and port are read from the handoff file the server job
-# writes, so a resubmitted server is followed without editing this file.
+# AIProver harness configuration: AIProver model on TACC Vista, reached through
+# the reasoning proxy (server/reasoning_proxy.py, 127.0.0.1:18565), which
+# forwards to the SSH tunnel of aiprover_vista.toml and records the model's
+# reasoning per session. The tunnel itself is opened with aiprover_vista.toml
+# (`aiprover tunnel up`); this file only directs the harness to the proxy.
 
 [endpoint]
-mode = "ssh"
+mode = "direct"
 ssh_host = "vista.tacc.utexas.edu"
 ssh_user = "loganluna"
 ssh_port = 22
@@ -22,8 +16,8 @@ server_handoff = "/scratch/11757/loganluna/servers/aiprover_server.txt"
 remote_host = ""
 remote_port = 8060
 local_port = 18555
-# Unused in ssh mode; present because the CLI reads every endpoint key.
-api_base = "http://127.0.0.1:18555/v1"
+# The proxy; ssh_* and port keys above are unused in direct mode.
+api_base = "http://127.0.0.1:18565/v1"
 api_key = "EMPTY"
 # Served model id; empty = the first id /v1/models reports.
 model = "aiprover"

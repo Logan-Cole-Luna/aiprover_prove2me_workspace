@@ -3,9 +3,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap">
 <style>
 /*TRACE_COMMON_CSS*/
+</style>
+<style>
+/*TRACE_THEME_CSS*/
 </style>
 
 <header class="topbar">
@@ -14,7 +17,6 @@
   <span id="status"></span>
   <span class="spacer"></span>
   <span class="run" id="models"></span>
-  <a class="btn" href="trace_graph.html">Graph view</a>
   <a class="btn" href="trace_replay.html">Replay</a>
 </header>
 
@@ -45,7 +47,7 @@ if (!TRACE) {
   document.body.innerHTML = `<main style="padding:48px 24px;max-width:62ch;font:16px/1.6 system-ui,sans-serif">
     <h1 style="font-size:1.4rem">No run data in this file</h1>
     <p>This is a page template. The rendered pages for each run are in
-    <code>results/&lt;run_id&gt;/</code>: <code>trace.html</code>, <code>trace_graph.html</code>
+    <code>results/&lt;run_id&gt;/</code>: <code>trace.html</code>
     and <code>trace_replay.html</code>. Generate them with</p>
     <pre style="background:#eef0f4;padding:10px 12px;border-radius:6px">python3 -m orchestrator.trace_view results/&lt;run_id&gt;/trace.json</pre>
   </main>`;
@@ -388,7 +390,7 @@ function chapterSketch() {
     const uses = lemmaUses(win?.proof, name);
     return `<div class="panel lemma">
       <div class="head"><span class="name">${escapeHTML(name)}</span>
-        ${win ? `<span class="pill ok">proved by solver ${win.worker}, round ${win.round}</span> ${stepLink(win)}` : `<span class="pill fail">not proved</span>`}</div>
+        ${win ? `<span class="pill ok">proved by ${escapeHTML(winnerText(win))}</span> ${stepLink(win)}` : `<span class="pill fail">not proved</span>`}</div>
       ${leanHTML(statement + " := by sorry")}
       ${uses.length ? `<p class="muted">Its proof uses ${uses.map(n => `<code>${escapeHTML(n)}</code>`).join(", ")}, available as an earlier lemma.</p>` : ""}
     </div>`;
@@ -411,15 +413,30 @@ function gantt() {
   const groups = lemmaOrder.filter(name => solverCalls.some(c => c.lemma === name)).map(name => {
     const win = lemmaWins.get(name);
     const winLine = win ? `<span class="winline" style="left:${pos(win.elapsed_seconds)}"></span>` : "";
-    const rows = workers.map(worker => {
+    const jobs = jobsByLemma.get(name);
+    const rows = jobs ? sampleLanes().map(k => {
+      const bars = jobs.filter(job => k < jobSamples(job)).map(job => {
+        const o = sampleOutcome(job, k);
+        const end = o.check ? o.check.elapsed_seconds : o.end;
+        const width = (end - o.start) / span * 100;
+        const outcome = { win: "proof kept", ok: "compiles", fail: "Lean errors" }[o.state] || o.text;
+        const tip = `${name} · solver ${k} · AIProver job ${jobNumber(job)} · ${formatDuration(o.end - o.start)}`
+          + `${o.turns != null ? ` · ${o.turns} turns` : ""} · ${outcome}`;
+        return `<button class="bar ${o.state}" type="button" data-step="${job.index}" title="${escapeHTML(tip)}" style="left:${pos(o.start)};width:${width.toFixed(3)}%">j${jobNumber(job)}</button>`;
+      }).join("");
+      return `<div class="g-row"><span class="lab">solver ${k}</span><div class="g-track">${winLine}${bars}</div></div>`;
+    }).join("") : workers.map(worker => {
       const bars = solverCalls.filter(c => c.lemma === name && c.worker === worker).map(c => {
         const { state } = solverOutcome(c);
         const start = c.elapsed_seconds - (c.seconds || 0);
         const width = (endOf(c) - start) / span * 100;
-        const tip = `${name} · solver ${worker} · round ${c.round} · ${formatDuration(c.seconds || 0)} · ${state}`;
-        return `<button class="bar ${state}" type="button" data-step="${c.index}" title="${escapeHTML(tip)}" style="left:${pos(start)};width:${width.toFixed(3)}%">r${c.round}</button>`;
+        const job = isJob(c);
+        const outcome = job && state === "pending" ? jobSummary(c) : state;
+        const tip = job ? `${name} · AIProver job ${jobNumber(c)} · ${formatDuration(c.seconds || 0)} · ${outcome}`
+          : `${name} · solver ${worker} · round ${c.round} · ${formatDuration(c.seconds || 0)} · ${state}`;
+        return `<button class="bar ${state}" type="button" data-step="${c.index}" title="${escapeHTML(tip)}" style="left:${pos(start)};width:${width.toFixed(3)}%">${job ? `job ${jobNumber(c)}` : `r${c.round}`}</button>`;
       }).join("");
-      return `<div class="g-row"><span class="lab">solver ${worker}</span><div class="g-track">${winLine}${bars}</div></div>`;
+      return `<div class="g-row"><span class="lab">${jobsByLemma.has(name) ? "AIProver" : `solver ${worker}`}</span><div class="g-track">${winLine}${bars}</div></div>`;
     }).join("");
     const attempts = solverCalls.filter(c => c.lemma === name).length;
     return `<div class="g-group"><div class="gh"><span class="name">${escapeHTML(name)}</span>
@@ -436,15 +453,61 @@ function gantt() {
     <span><i class="sw bar ok" style="position:static"></i>compiled, not needed</span>
     <span><i class="sw bar fail" style="position:static"></i>Lean errors, repaired in next round</span>
     <span><i class="sw bar late" style="position:static"></i>finished after the lemma was proved; discarded</span>
+    <span><i class="sw bar pending" style="position:static"></i>no proof to check (AIProver: sorry, no answer or server lost)</span>
     <span><i class="sw" style="border-left:2px solid var(--ok);width:4px;border-radius:0"></i>lemma proved</span>
   </div>`;
+}
+
+function chapterProveAIProver(jobs) {
+  const solver = TRACE.agents?.solver || {};
+  const perJob = cfg.workers ?? 1;
+  const concurrency = cfg.aiprover_lemma_concurrency || null;
+  const peak = peakInFlight();
+  const firstJob = [...lemmaWins.values()].filter(w => jobOf(w) && jobNumber(jobOf(w)) === 1).length;
+  return `
+  <div class="eyebrow">Stage 4 · solvers</div>
+  <h2>Parallel proving with AIProver</h2>
+  <p class="lead">Each lemma goes to an AIProver job of ${plural(perJob, "independent session")}
+  (samples) that run in parallel. A session is an agentic Lean loop with the lean-lsp tools, limited to
+  ${solver.max_turns ?? "N"} turns and ${formatDuration(solver.timeout ?? 0)}. From each sample's final file the
+  pipeline extracts the lemma's proof and checks it with Lean; the first proof that compiles is kept.
+  ${concurrency ? `Up to ${plural(concurrency, "lemma job")} run at once, so up to ${concurrency * perJob} sessions.`
+    : "All pending lemma jobs are submitted at once."} A lemma that is not proved is retried by a new
+  job, up to ${plural(cfg.aiprover_attempts_per_lemma ?? 1, "completed job")} per statement, and after a replan.
+  Jobs stopped by a lost model server do not count and are not shown.</p>
+  <div class="stats">
+    <div class="stat"><span class="v">${jobs.length}</span><span class="k">AIProver jobs</span></div>
+    <div class="stat"><span class="v">${perJob}</span><span class="k">parallel sessions per job</span></div>
+    <div class="stat"><span class="v">${peak.jobs} · ${peak.sessions}</span><span class="k">peak jobs · sessions in flight</span></div>
+    <div class="stat"><span class="v">${lemmaWins.size} / ${lemmaOrder.length}</span><span class="k">lemmas proved</span></div>
+    <div class="stat"><span class="v">${firstJob}</span><span class="k">proved by the first job</span></div>
+  </div>
+  <p class="muted">Sessions in flight include those waiting in AIProver: the harness runs at most
+  <code>max_parallel</code> sessions on this machine (8) and queues the rest.</p>
+  <div class="panel">
+    <h3>Solver timeline</h3>
+    <p class="muted">One row per solver (AIProver sample). Each bar is that sample's session in one
+    AIProver job, labelled with the job number; hover for its turns and how it ended. Select a bar to
+    read the job's problem and samples.</p>
+  </div>
+  ${gantt()}
+  <details class="fold"><summary><b>All solver steps</b><span class="muted">${plural(jobs.length, "job")}, with their Lean checks and decisions</span></summary>
+    <div class="body">${stepList(steps.filter(s => s.stage === "prove"))}</div></details>
+  <h3>Kept proofs</h3>
+  ${[...lemmaWins.values()].map(w => `
+    <div class="panel lemma">
+      <div class="head"><span class="name">${escapeHTML(w.lemma)}</span><span class="muted">${escapeHTML(winnerText(w))}</span>${stepLink(w)}</div>
+      ${w.helpers ? leanHTML(w.helpers) : ""}
+      ${leanHTML(w.proof || "")}
+    </div>`).join("") || `<p class="muted">No lemma was proved.</p>`}`;
 }
 
 function chapterProve() {
   const solverCalls = calls.filter(c => c.lemma != null);
   const outcomes = solverCalls.map(solverOutcome);
   const count = state => outcomes.filter(o => o.state === state).length;
-  const firstTry = [...lemmaWins.values()].filter(w => w.round === 0).length;
+  const firstTry = [...lemmaWins.values()].filter(w => jobOf(w) ? jobNumber(jobOf(w)) === 1 : w.round === 0).length;
+  if (jobsByLemma.size) return chapterProveAIProver(solverCalls);
   return `
   <div class="eyebrow">Stage 4 · solvers</div>
   <h2>Parallel proving</h2>
@@ -470,7 +533,7 @@ function chapterProve() {
   <h3>Kept proofs</h3>
   ${[...lemmaWins.values()].map(w => `
     <div class="panel lemma">
-      <div class="head"><span class="name">${escapeHTML(w.lemma)}</span><span class="muted">solver ${w.worker}, round ${w.round}</span>${stepLink(w)}</div>
+      <div class="head"><span class="name">${escapeHTML(w.lemma)}</span><span class="muted">${escapeHTML(winnerText(w))}</span>${stepLink(w)}</div>
       ${w.helpers ? leanHTML(w.helpers) : ""}
       ${leanHTML(w.proof || "")}
     </div>`).join("")}`;

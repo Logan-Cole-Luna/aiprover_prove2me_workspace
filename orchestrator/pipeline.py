@@ -7,6 +7,7 @@ models (solvers) prove the lemmas in parallel with Lean error feedback.
 All Lean checking is local, in the prove2me workspace environment.
 """
 
+import fcntl
 import json
 import logging
 import re
@@ -20,7 +21,8 @@ from pathlib import Path
 
 from . import prompts
 from .agents import AgentCallError, AgentPool, Completion, build_agent
-from .aiprover_agent import AIProverAgent, extract_lemma_proof, split_declarations
+from .aiprover_agent import (AIProverAgent, extract_lemma_proof, failed_attempt,
+                             split_declarations, wrapped_lemma_proof)
 from .lean_check import LeanChecker, forbidden_constructs, nonstandard_axioms
 from .resume import ResumeState, restore_state
 from .structures import (Formalization, Lemma, Sketch, drop_imports, extract_tag,
@@ -72,6 +74,19 @@ class Config:
     max_audit_rounds: int = 2      # formalization revisions after REVISE
     lean_parallel: int = 6
     lean_timeout: int = 300
+    max_claude_calls: int = 0      # calls to claude_cli agents per run; 0 = unlimited
+    # AIProver lemma jobs in flight at once; 0 = all pending lemmas. Each job
+    # runs `workers` sessions that share one model server.
+    aiprover_lemma_concurrency: int = 0
+    # AIProver jobs per lemma statement that run to completion; jobs stopped
+    # by a lost model server or an interruption do not count.
+    aiprover_attempts_per_lemma: int = 1
+    # Sessions shared by the AIProver jobs in flight; 0 = `workers` per job.
+    # Each job takes a share weighted by its lemma's failed attempts.
+    aiprover_session_slots: int = 0
+    # Completed failed jobs after which a lemma is handed back to the captain
+    # (prove it, split it, restate it, or retry); 0 = never.
+    aiprover_handback_after: int = 0
 
 
 def slug_from_problem(row: dict) -> str:
@@ -133,7 +148,8 @@ class Orchestration:
         }, previous=previous)
         self.agents = AgentPool(agents, self.log_dir / "calls.jsonl", trace=self.trace,
                                 system_prompt_ids={text: key for key, text
-                                                   in system_prompts.items()})
+                                                   in system_prompts.items()},
+                                max_claude_calls=config.max_claude_calls)
         self._file_counter = self.state.lean_checks_done
         self._counter_lock = threading.Lock()
         previous_outcome = (previous or {}).get("outcome") or {}
@@ -350,10 +366,15 @@ class Orchestration:
                                    worker=worker, round=repair, problems=problems)
                 with result_lock:
                     lemma.last_errors = "\n".join(problems)[:3000]
+                    lemma.last_attempts = (
+                        f"Solver {worker}, repair {repair}\n<lean>\n"
+                        + "\n\n".join(filter(None, [helpers, f"{lemma.statement} := by\n{_indent(proof)}"]))
+                        + "\n</lean>\nLean errors:\n" + lemma.last_errors)
                 feedback = prompts.SOLVER_REPAIR_TEMPLATE.format(
                     helpers=helpers, proof=proof, errors="\n".join(problems))
             logger.info(f"worker {worker} exhausted its budget on {lemma.name}")
-            self._decision("solver_budget_exhausted", lemma=lemma.name, worker=worker)
+            self._decision("solver_budget_exhausted", lemma=lemma.name, worker=worker,
+                           errors=lemma.last_errors, attempts=lemma.last_attempts)
 
         with ThreadPoolExecutor(max_workers=len(pending) * self.config.workers) as pool:
             futures = [pool.submit(chain, k, lemma, worker)
@@ -363,28 +384,90 @@ class Orchestration:
 
     def _prove_with_aiprover(self, form: Formalization, sketch: Sketch,
                              pending: list[tuple[int, Lemma]]) -> None:
-        """Prove each pending lemma with one AIProver job of `workers` samples.
+        """Prove each pending lemma with AIProver jobs, up to
+        `aiprover_attempts_per_lemma` completed jobs per lemma statement.
 
-        The job receives the definitions and earlier lemmas as fixed context
+        A job receives the definitions and earlier lemmas as fixed context
         and the lemma as fixed statement. Every sample's proof is extracted
         and checked by the same Lean gate as chat solvers; the first sample
-        that passes proves the lemma.
+        that passes proves the lemma. Jobs share `aiprover_session_slots`
+        sessions, weighted towards lemmas with more failures. After
+        `aiprover_handback_after` failures a lemma is handed back to the
+        captain once per statement; a split adds new lemmas to this phase.
         """
         solver: AIProverAgent = self.agents.agents["solver"]
-        sketch_names = {lemma.name for lemma in sketch.lemmas}
+        sketch_lock = threading.Lock()     # sketch.lemmas, statements, session counts
+        sessions_in_flight: dict[str, int] = {}
+        max_attempts = max(1, self.config.aiprover_attempts_per_lemma)
+        concurrency = self.config.aiprover_lemma_concurrency or len(pending)
 
-        def attempt(k: int, lemma: Lemma) -> None:
-            stubs = "\n\n".join(f"{earlier.statement} := by sorry"
-                                 for earlier in sketch.lemmas[:k])
+        def weight(lemma: Lemma) -> int:
+            return 1 + lemma.attempts
+
+        def allocate(lemma: Lemma) -> int:
+            """Sessions for the next job on `lemma`: its weighted share of the
+            free slots against the lemmas that could start alongside it."""
+            slots = self.config.aiprover_session_slots
+            if not slots:
+                return self.config.workers
+            free = slots - sum(sessions_in_flight.values())
+            waiting = sorted((other for other in sketch.lemmas
+                              if other is not lemma and not other.proved
+                              and other.name not in sessions_in_flight
+                              and other.attempts < max_attempts),
+                             key=weight, reverse=True)
+            rivals = waiting[:max(0, concurrency - len(sessions_in_flight) - 1)]
+            share = free * weight(lemma) // (weight(lemma) + sum(map(weight, rivals)))
+            return max(1, min(free, share))
+
+        def maybe_handback(lemma: Lemma) -> None:
+            after = self.config.aiprover_handback_after
+            if (not after or lemma.proved or lemma.handed_back or lemma.attempts < after
+                    or stopped.is_set()):
+                return
+            if not lemma.last_attempts:
+                # No session left code of its own: a setup failure (clock,
+                # stalled replies); retry before asking the captain.
+                logger.info(f"{lemma.name}: no code in the last attempt; hand-back deferred")
+            elif self.agents.claude_budget_left() < 2:
+                logger.info(f"{lemma.name}: Claude budget too low for a hand-back")
+            else:
+                self._handback(form, sketch, lemma, sketch_lock, submit)
+
+        def attempt(lemma: Lemma) -> None:
+            # The hand-back comes before the next job, so a lemma restored with
+            # enough failures (after a resume) goes to the captain first.
+            while not lemma.proved and not stopped.is_set():
+                maybe_handback(lemma)
+                if lemma.proved or lemma.attempts >= max_attempts:
+                    break
+                with sketch_lock:
+                    samples = allocate(lemma)
+                    sessions_in_flight[lemma.name] = samples
+                try:
+                    one_job(lemma, samples)
+                finally:
+                    with sketch_lock:
+                        sessions_in_flight.pop(lemma.name, None)
+
+        def context_for(lemma: Lemma) -> tuple[str, set[str]]:
+            with sketch_lock:
+                earlier = sketch.lemmas[:sketch.lemmas.index(lemma)]
+                stubs = "\n\n".join(f"{other.statement} := by sorry" for other in earlier)
+            return stubs, {name for _, name, _ in split_declarations(self._standalone(form, stubs))}
+
+        def one_job(lemma: Lemma, samples: int) -> None:
+            stubs, fixed_names = context_for(lemma)
             context = self._standalone(form, stubs).rstrip() + "\n"
             statement = f"{lemma.statement} := by\n  sorry\n"
-            fixed_names = {name for _, name, _ in split_declarations(context)}
             theorem_text = prompts.AIPROVER_LEMMA_TEMPLATE.format(
                 lemma_name=lemma.name, informal_statement=self.row["informal_statement"])
+            logger.info(f"AIProver job on {lemma.name}: {samples} session(s), "
+                        f"attempt {lemma.attempts + 1}/{max_attempts}")
             job = solver.solve(name=f"{self.run_id}_{lemma.name}"[:60],
                                theorem_text=theorem_text,
                                proof_text=self.row["informal_proof"], context=context,
-                               statement=statement, samples=self.config.workers,
+                               statement=statement, samples=samples,
                                work_dir=self.temp_dir / "aiprover")
             ranked = sorted(job.samples, key=lambda sample: sample.status != "verified")
             best = next((sample.lean for sample in ranked if sample.lean), "")
@@ -394,47 +477,210 @@ class Orchestration:
                 lemma=lemma.name, worker=0, round=0, aiprover_job=job.job,
                 samples=[{"sample": sample.index, "status": sample.status,
                           "turns": sample.turns, "tool_calls": sample.tool_calls,
-                          "elapsed_sec": sample.elapsed_sec,
-                          "problems": sample.problems[:5]} for sample in job.samples])
+                          "elapsed_sec": sample.elapsed_sec, "ending": sample.ending,
+                          "problems": sample.problems[:5], "check": sample.check,
+                          "lean": sample.lean, "session": sample.session,
+                          "reasoning": sample.reasoning} for sample in job.samples])
             errors = [job.error] if job.error else []
+            with sketch_lock:
+                sketch_names = {other.name for other in sketch.lemmas}
             for sample in ranked:
                 extracted = extract_lemma_proof(sample.lean, lemma.name, fixed_names)
                 if extracted is None:
                     errors.append(f"sample {sample.index} ({sample.status}): "
                                   f"no proof of `{lemma.name}` in the answer")
                     continue
-                helpers, proof = extracted
-                proof = strip_leading_by(proof)
-                problems = [f"forbidden construct: {name}"
-                            for name in forbidden_constructs(helpers + "\n" + proof)]
-                problems += [f"helper `{name}` collides with a sketch lemma"
-                             for _, name, _ in split_declarations(helpers)
-                             if name in sketch_names]
-                if not problems:
-                    body = "\n\n".join(filter(None, [stubs, helpers,
-                                                     f"{lemma.statement} := by\n{_indent(proof)}"]))
-                    result = self._check(f"{lemma.name}_aiprover_s{sample.index}",
-                                         self._standalone(form, body), lemma=lemma.name,
-                                         worker=sample.index, round=0)
-                    if result.ok:
-                        lemma.helpers, lemma.proof, lemma.proved = helpers, proof, True
-                        logger.info(f"lemma {lemma.name} proved by AIProver sample "
-                                    f"{sample.index} ({sample.status})")
-                        self._decision("lemma_proved", lemma=lemma.name, worker=sample.index,
-                                       round=0, helpers=helpers, proof=proof)
-                        return
-                    problems.append(result.error_report())
+                # The proof spliced under the sketch's statement, then, if that
+                # fails, the answer's whole theorem kept as a helper.
+                alias = f"{lemma.name}_aiprover_s{sample.index}"
+                candidates = [("", extracted)]
+                wrapped = wrapped_lemma_proof(sample.lean, lemma.name, fixed_names, alias)
+                if wrapped:
+                    candidates.append(("_kept", wrapped))
+                problems = []
+                for suffix, (helpers, proof) in candidates:
+                    proof = strip_leading_by(proof)
+                    found = [f"forbidden construct: {name}"
+                             for name in forbidden_constructs(helpers + "\n" + proof)]
+                    found += [f"helper `{name}` collides with a sketch lemma"
+                              for _, name, _ in split_declarations(helpers)
+                              if name in sketch_names]
+                    if not found:
+                        body = "\n\n".join(filter(None, [stubs, helpers,
+                                                         f"{lemma.statement} := by\n{_indent(proof)}"]))
+                        result = self._check(alias + suffix, self._standalone(form, body),
+                                             lemma=lemma.name, worker=sample.index, round=0)
+                        if result.ok:
+                            lemma.helpers, lemma.proof, lemma.proved = helpers, proof, True
+                            logger.info(f"lemma {lemma.name} proved by AIProver sample "
+                                        f"{sample.index} ({sample.status}"
+                                        f"{', own statement kept' if suffix else ''})")
+                            self._decision("lemma_proved", lemma=lemma.name, worker=sample.index,
+                                           round=0, helpers=helpers, proof=proof)
+                            return
+                        found.append(result.error_report())
+                    problems += found
                 errors.append(f"sample {sample.index} ({sample.status}): "
                               + "\n".join(problems))
+            # A lost model server is an infrastructure failure, not a failed
+            # lemma: the run stops and resumes this lemma instead of replanning.
+            if not solver.endpoint_up():
+                raise AgentCallError(f"AIProver endpoint unavailable during {lemma.name}")
+            lemma.attempts += 1
             lemma.last_errors = "\n\n".join(errors)[:3000]
-            logger.info(f"AIProver job {job.job} did not prove {lemma.name}: "
+            # The samples' own code, most complete first, for the captain.
+            attempts = sorted(filter(None, (failed_attempt(sample, lemma.name, fixed_names)
+                                            for sample in job.samples)), key=lambda a: a[0])
+            lemma.last_attempts = "\n\n".join(text for _, text in attempts)
+            logger.info(f"AIProver job {job.job} did not prove {lemma.name} "
+                        f"(attempt {lemma.attempts}/{max_attempts}): "
                         f"{[sample.status for sample in job.samples]}")
             self._decision("solver_budget_exhausted", lemma=lemma.name, worker=0,
-                           aiprover_job=job.job)
+                           aiprover_job=job.job, errors=lemma.last_errors,
+                           attempts=lemma.last_attempts)
 
-        with ThreadPoolExecutor(max_workers=len(pending)) as pool:
-            for future in [pool.submit(attempt, k, lemma) for k, lemma in pending]:
-                future.result()
+        # After a failure (lost endpoint, interruption), lemmas not yet
+        # started are skipped rather than run against a dead server. The flag
+        # is set by the failing thread itself, before its worker is reused.
+        stopped = threading.Event()
+
+        def guarded(lemma: Lemma) -> None:
+            if stopped.is_set():
+                return
+            try:
+                attempt(lemma)
+            except BaseException:
+                stopped.set()
+                raise
+
+        futures = []
+        futures_lock = threading.Lock()
+
+        def submit(lemma: Lemma) -> None:
+            with futures_lock:
+                futures.append(pool.submit(guarded, lemma))
+
+        with ThreadPoolExecutor(max_workers=concurrency) as pool:
+            for _, lemma in pending:
+                submit(lemma)
+            try:
+                done = 0
+                while True:
+                    with futures_lock:
+                        if done == len(futures):
+                            break
+                        future = futures[done]
+                    future.result()
+                    done += 1
+            except BaseException:
+                stopped.set()
+                raise
+
+    def _handback(self, form: Formalization, sketch: Sketch, lemma: Lemma,
+                  sketch_lock: threading.Lock, submit) -> None:
+        """Hand a lemma the solvers keep failing on back to the captain.
+
+        The captain proves it, splits it into new lemmas (handed to solvers
+        through `submit`), restates it, or asks for a retry. Every proof and
+        statement it proposes is checked by Lean before it is applied; one
+        repair is allowed.
+        """
+        lemma.handed_back = True
+        with sketch_lock:
+            position = sketch.lemmas.index(lemma)
+            listing = "\n\n".join(
+                f"{other.statement} := by sorry"
+                + ("  -- proved" if other.proved else "")
+                + ("  -- this lemma" if other is lemma else "")
+                for other in sketch.lemmas)
+            earlier = sketch.lemmas[:position]
+            stubs = "\n\n".join(f"{other.statement} := by sorry" for other in earlier)
+            names = {other.name for other in sketch.lemmas}
+            used_by_proofs = any(re.search(rf"(?<![\w.']){re.escape(lemma.name)}(?![\w'])",
+                                           other.helpers + "\n" + other.proof)
+                                 for other in sketch.lemmas if other.proved)
+        prompt = prompts.HANDBACK_TEMPLATE.format(
+            attempts=lemma.attempts, lemma_name=lemma.name, definitions=form.definitions,
+            preamble=form.preamble, lemmas=listing, main_proof=sketch.main_proof,
+            informal_proof=self.row["informal_proof"], failed=failed_lemma_text(lemma))
+        feedback = ""
+        for repair in range(2):
+            if repair and self.agents.claude_budget_left() < 1:
+                break
+            reply = self._captain(prompt + feedback, phase=f"handback/{lemma.name}")
+            diagnosis = extract_tag(reply, "diagnosis")
+            helpers = drop_imports(extract_tag(reply, "helpers"))
+            proof = strip_leading_by(extract_tag(reply, "proof"))
+            split_block = drop_imports(extract_tag(reply, "split"))
+            restated = extract_tag(reply, "restate")
+            problems = []
+            if restated:
+                new = parse_lemmas(restated if ":=" in restated else restated + " := by sorry")
+                if len(new) != 1 or new[0].name != lemma.name:
+                    problems.append(f"<restate> must state exactly `theorem {lemma.name} ...`")
+                elif used_by_proofs:
+                    problems.append(f"proved lemmas use `{lemma.name}`; it cannot be restated")
+                else:
+                    with sketch_lock:
+                        candidate = Sketch([new[0] if other is lemma else other
+                                            for other in sketch.lemmas], sketch.main_proof)
+                    result = self._check(f"{lemma.name}_restated",
+                                         self._standalone(form, self._sketch_body(form, candidate)),
+                                         lemma=lemma.name)
+                    if result.ok:
+                        old = lemma.statement
+                        with sketch_lock:
+                            lemma.statement = new[0].statement
+                            lemma.attempts, lemma.handed_back = 0, False
+                        logger.info(f"{lemma.name} restated by the captain")
+                        self._decision("lemma_handback", lemma=lemma.name, action="restate",
+                                       diagnosis=diagnosis, statement=lemma.statement,
+                                       previous_statement=old)
+                        return
+                    problems.append(result.error_report())
+            elif proof:
+                new_lemmas = parse_lemmas(split_block) if split_block else []
+                clashes = [other.name for other in new_lemmas
+                           if other.name in names or other.name == lemma.name]
+                problems += [f"new lemma `{name}` reuses an existing name" for name in clashes]
+                problems += [f"forbidden construct: {name}"
+                             for name in forbidden_constructs(helpers + "\n" + proof
+                                                              + "\n" + re.sub(r"\bsorry\b", "", split_block))]
+                if not problems:
+                    body = "\n\n".join(filter(None, [
+                        stubs, *(f"{other.statement} := by sorry" for other in new_lemmas),
+                        helpers, f"{lemma.statement} := by\n{_indent(proof)}"]))
+                    result = self._check(f"{lemma.name}_captain", self._standalone(form, body),
+                                         lemma=lemma.name, worker="captain")
+                    if result.ok:
+                        with sketch_lock:
+                            for offset, other in enumerate(new_lemmas):
+                                sketch.lemmas.insert(position + offset, other)
+                            lemma.helpers, lemma.proof, lemma.proved = helpers, proof, True
+                        action = "split" if new_lemmas else "proof"
+                        logger.info(f"{lemma.name}: captain {action}"
+                                    + (f" into {[other.name for other in new_lemmas]}" if new_lemmas else ""))
+                        self._decision("lemma_handback", lemma=lemma.name, action=action,
+                                       diagnosis=diagnosis,
+                                       new_lemmas=[other.statement for other in new_lemmas])
+                        self._decision("lemma_proved", lemma=lemma.name, worker="captain",
+                                       round=0, helpers=helpers, proof=proof)
+                        for other in new_lemmas:
+                            submit(other)
+                        return
+                    problems.append(result.error_report())
+            elif "<retry" in reply:
+                logger.info(f"{lemma.name}: captain asks for a retry")
+                self._decision("lemma_handback", lemma=lemma.name, action="retry",
+                               diagnosis=diagnosis)
+                return
+            else:
+                problems.append("the reply names no action")
+            logger.info(f"{lemma.name}: hand-back reply rejected: {problems[0][:200]}")
+            feedback = prompts.HANDBACK_REPAIR_TEMPLATE.format(
+                reply=reply, errors="\n".join(problems)[:6000])
+        self._decision("lemma_handback", lemma=lemma.name, action="rejected",
+                       diagnosis="", problems=problems[:5])
 
     def replan(self, form: Formalization, sketch: Sketch,
                resumed: bool = False) -> Sketch:
@@ -446,8 +692,7 @@ class Orchestration:
             lemmas="\n\n".join(f"{lemma.statement} := by sorry" for lemma in sketch.lemmas),
             main_proof=sketch.main_proof,
             proved="\n\n".join(lemma.statement for lemma in proved) or "(none)",
-            failed="\n\n".join(f"{lemma.statement}\nLast Lean errors:\n{lemma.last_errors}"
-                               for lemma in failed))
+            failed="\n\n".join(failed_lemma_text(lemma) for lemma in failed))
         self._decision("replan_resumed" if resumed else "replan",
                        proved=[lemma.name for lemma in proved],
                        failed=[lemma.name for lemma in failed])
@@ -504,14 +749,18 @@ class Orchestration:
             path = self.workspace / (module.replace(".", "/") + ".lean")
             path.write_text(text)
             (self.result_dir / path.name).write_text(text)
-        try:
-            proc = subprocess.run(["lake", "build", check_module], cwd=self.workspace,
-                                  capture_output=True, text=True,
-                                  timeout=self.config.lean_timeout * 2)
-            output = proc.stdout + proc.stderr
-            built = proc.returncode == 0
-        except subprocess.TimeoutExpired:
-            output, built = "lake build timed out", False
+        # Concurrent runs share the workspace's build directory; one
+        # `lake build` at a time.
+        with open(self.workspace / ".lake_build.lock", "w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                proc = subprocess.run(["lake", "build", check_module], cwd=self.workspace,
+                                      capture_output=True, text=True,
+                                      timeout=self.config.lean_timeout * 2)
+                output = proc.stdout + proc.stderr
+                built = proc.returncode == 0
+            except subprocess.TimeoutExpired:
+                output, built = "lake build timed out", False
         (self.result_dir / "module_build.log").write_text(output)
         solution_imports_target = thm_module in files[sol_module]
         return {"module_build": built,
@@ -615,6 +864,14 @@ class Orchestration:
                 orchestration.phase_times[phase] = (orchestration.phase_times.get(phase, 0.0)
                                                     + time.time() - self.start)
         return _Timer()
+
+
+def failed_lemma_text(lemma: Lemma) -> str:
+    """A failed lemma as listed in the replan prompt."""
+    parts = [lemma.statement, f"Last Lean errors:\n{lemma.last_errors or '(none recorded)'}"]
+    if lemma.last_attempts:
+        parts.append(f"<last_attempts>\n{lemma.last_attempts}\n</last_attempts>")
+    return "\n".join(parts)
 
 
 def _indent(tactics: str, width: int = 2) -> str:

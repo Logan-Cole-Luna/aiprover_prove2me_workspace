@@ -85,15 +85,18 @@ class ClaudeCLIAgent(Agent):
     backend = "claude_cli"
 
     def __init__(self, model: str, effort: str = "",
-                 timeout: int = claude_cli.REQUEST_TIMEOUT_S, **options):
-        super().__init__(model, max_retries=claude_cli.MAX_RETRIES,
-                         effort=effort, timeout=timeout, **options)
+                 timeout: int = claude_cli.REQUEST_TIMEOUT_S, max_output_tokens: int = 0,
+                 **options):
+        super().__init__(model, max_retries=claude_cli.MAX_RETRIES, effort=effort,
+                         timeout=timeout, max_output_tokens=max_output_tokens, **options)
         self.effort = effort
         self.timeout = timeout
+        self.max_output_tokens = max_output_tokens
 
     def complete_once(self, prompt: str, system_prompt: str) -> Completion:
         text, payload, error = claude_cli.invoke_once(prompt, self.model, system_prompt,
-                                                      self.timeout, self.effort)
+                                                      self.timeout, self.effort,
+                                                      self.max_output_tokens)
         usage = {model_id: {"inputTokens": int(u.get("inputTokens") or 0),
                             "outputTokens": int(u.get("outputTokens") or 0),
                             "costUSD": float(u.get("costUSD") or 0.0)}
@@ -198,8 +201,10 @@ class AgentPool:
     BACKOFF_S = [10, 30, 60, 180, 300]
 
     def __init__(self, agents: dict[str, Agent], calls_path: Path, trace=None,
-                 system_prompt_ids: dict[str, str] | None = None):
+                 system_prompt_ids: dict[str, str] | None = None,
+                 max_claude_calls: int = 0):
         self.agents = agents
+        self.max_claude_calls = max_claude_calls
         self.calls_path = Path(calls_path)
         self.calls_path.parent.mkdir(parents=True, exist_ok=True)
         self.trace = trace
@@ -208,6 +213,7 @@ class AgentPool:
         self.system_prompt_ids = system_prompt_ids or {}
         self._lock = threading.Lock()
         self.num_calls: dict[str, int] = {}
+        self.claude_calls = 0
         self.usage_by_model: dict[str, dict] = {}
         if self.calls_path.exists():
             self._load_history()
@@ -216,10 +222,12 @@ class AgentPool:
         """Seed the call and usage totals from an existing calls file (resume)."""
         for line in self.calls_path.read_text().splitlines():
             record = json.loads(line)
-            self._accumulate(record["role"], record.get("model_usage") or {})
+            self._accumulate(record["role"], record.get("backend"),
+                             record.get("model_usage") or {})
 
-    def _accumulate(self, role: str, model_usage: dict) -> None:
+    def _accumulate(self, role: str, backend: str | None, model_usage: dict) -> None:
         self.num_calls[role] = self.num_calls.get(role, 0) + 1
+        self.claude_calls += backend == "claude_cli"
         for model_id, usage in model_usage.items():
             totals = self.usage_by_model.setdefault(
                 model_id, {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0})
@@ -235,6 +243,8 @@ class AgentPool:
         pipeline never proceeds on an empty reply.
         """
         agent = self.agents[role]
+        if agent.backend == "claude_cli" and self.max_claude_calls:
+            self._check_claude_budget()
         completion = Completion()
         for attempt in range(agent.max_retries + 1):
             start = time.time()
@@ -253,6 +263,16 @@ class AgentPool:
             time.sleep(max(wait, 1.0))
         raise AgentCallError(f"{agent.backend} call failed ({role}/{phase}): "
                              f"{completion.error}")
+
+    def claude_budget_left(self) -> int:
+        """Calls to claude_cli agents left in the run's budget (large if unlimited)."""
+        return self.max_claude_calls - self.claude_calls if self.max_claude_calls else 1 << 30
+
+    def _check_claude_budget(self) -> None:
+        # A plain RuntimeError, not AgentCallError: the pipeline reports it as
+        # a budget stop, which is not restarted automatically.
+        if self.claude_calls >= self.max_claude_calls:
+            raise RuntimeError(f"Claude call budget of {self.max_claude_calls} exhausted")
 
     def record(self, role: str, phase: str, prompt: str, completion: Completion,
                seconds: float, **trace_fields) -> None:
@@ -278,7 +298,7 @@ class AgentPool:
             "response": completion.text,
         }
         with self._lock:
-            self._accumulate(role, completion.usage)
+            self._accumulate(role, agent.backend, completion.usage)
             with open(self.calls_path, "a") as f:
                 f.write(json.dumps(record) + "\n")
         if self.trace is not None:

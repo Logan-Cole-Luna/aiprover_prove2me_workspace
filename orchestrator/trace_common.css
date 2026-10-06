@@ -489,3 +489,24 @@ aside.drawer[hidden] { display: none !important; }
   aside.drawer { transition: none; }
 }
 a.btn { text-decoration: none; color: var(--ink); font-size: 0.85rem; }
+
+/* AIProver sessions in the step drawer ------------------------------------- */
+pre.plain.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+pre.diag {
+  margin: 0; padding: 10px 12px; border-radius: 6px; background: var(--surface-2);
+  font-size: 0.78rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: 420px; overflow: auto;
+}
+pre.diag .error { color: var(--fail); font-weight: 600; }
+pre.diag .warning { color: var(--warn); }
+.checkline { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; margin-top: 6px; }
+.checkline .k { font-size: 0.78rem; color: var(--muted); margin-right: 2px; }
+ul.problems { margin: 0; padding-left: 1.2em; font-size: 0.88rem; }
+h4.lanehead { margin: 14px 0 4px; font-family: var(--font-mono); font-size: 0.9rem; }
+.session { display: flex; flex-direction: column; gap: 8px; }
+.turn { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-left: 3px solid var(--line); }
+.turnhead { display: flex; gap: 10px; align-items: baseline; font-size: 0.8rem; color: var(--muted); }
+.toolcall { display: flex; flex-direction: column; gap: 4px; }
+.toolcall pre { max-height: 220px; overflow: auto; }
+details.reasoning > summary b { color: var(--accent); }
+details.fold.toolresult > summary { padding-block: 6px; }

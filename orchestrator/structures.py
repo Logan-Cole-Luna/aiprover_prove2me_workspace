@@ -28,6 +28,9 @@ class Lemma:
     proof: str = ""
     proved: bool = False
     last_errors: str = ""
+    last_attempts: str = ""        # the solvers' last failed code, for a replan
+    attempts: int = 0              # completed AIProver jobs that did not prove it
+    handed_back: bool = False      # handed back to the captain for this statement
 
 
 @dataclass

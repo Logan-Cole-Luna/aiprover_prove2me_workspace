@@ -3,7 +3,7 @@
 # the repository root.
 #
 # Usage: scripts/submit_aiprover_vista.sh MODEL_DIR [gh|gh-dev] [NODES] [TIME]
-#   MODEL_DIR  HF-format checkpoint (keep it on /work, TACC.md §2)
+#   MODEL_DIR  checkpoint, Mistral native or HF format (keep it on /work, TACC.md §2)
 #   partition  gh (default) or gh-dev (max 2 h, launch validation)
 #   NODES      nodes = tensor-parallel size (default 2)
 #   TIME       wall time (default 48:00:00; 02:00:00 on gh-dev)
@@ -21,7 +21,8 @@ else
 fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-[ -f "$MODEL_DIR/config.json" ] || { echo "no config.json in $MODEL_DIR" >&2; exit 1; }
+[ -f "$MODEL_DIR/params.json" ] || [ -f "$MODEL_DIR/config.json" ] \
+    || { echo "no params.json (Mistral) or config.json (HF) in $MODEL_DIR" >&2; exit 1; }
 mkdir -p "$SCRATCH/joblogs"
 export MODEL_DIR
 sbatch -p "$PARTITION" -N "$NODES" -t "$TIME" \

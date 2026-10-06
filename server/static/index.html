@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIProver Orchestration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Matches the editorial theme of the trace replay pages (orchestrator/trace_replay.html). */
+:root {
+  color-scheme: light;
+  --bg: #f5efe4; --panel: #fffaf1; --text: #1d1a16; --muted: #74695a;
+  --border: #ddd2bf; --accent: #c8401c; --accent-text: #ffffff; --accent-soft: #f7e0d4;
+  --ok: #2f7d4d; --bad: #b3261e; --code-bg: #f9f4ea;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-prose: "Newsreader", Georgia, serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.55 var(--font-ui);
+}
+main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-family: var(--font-display); font-style: italic; font-weight: 700;
+     font-size: 1.9rem; letter-spacing: -0.01em; line-height: 1.15; margin: 0 0 8px; }
+h2 { font-size: 0.74rem; margin: 0 0 12px; text-transform: uppercase;
+     letter-spacing: .14em; font-weight: 700; color: var(--accent); }
+.sub { color: var(--muted); margin: 0 0 20px; font-family: var(--font-prose);
+       font-size: 1.04rem; line-height: 1.5; max-width: 68ch; }
+section { background: var(--panel); border: 1px solid var(--border);
+          border-radius: 12px; padding: 18px 20px; margin-bottom: 16px;
+          box-shadow: 0 1px 3px rgba(60, 40, 10, 0.06); }
+label { display: block; font-weight: 600; margin: 10px 0 4px; }
+textarea, input, select {
+  width: 100%; padding: 8px 10px; font: inherit; color: var(--text);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+}
+textarea:focus-visible, input:focus-visible, select:focus-visible,
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+textarea { min-height: 120px; font-family: var(--font-mono); font-size: 13px; }
+button {
+  font: inherit; font-size: 0.88rem; padding: 6px 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--text); background: var(--text); color: var(--bg);
+}
+button:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button.plain { background: var(--panel); color: var(--text); border-color: var(--border); }
+button.plain:hover { border-color: var(--accent); color: var(--accent); background: var(--panel); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tabs button { background: var(--panel); color: var(--muted); border-color: var(--border); }
+.tabs button:hover { color: var(--accent); border-color: var(--accent); background: var(--panel); }
+.tabs button.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.hidden { display: none; }
+.health span { margin-right: 16px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+       margin-right: 6px; background: var(--muted); }
+.dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+         vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 0.74rem; text-transform: uppercase;
+     letter-spacing: .1em; border-bottom-color: var(--text); }
+td:first-child { font-family: var(--font-mono); font-size: 0.82rem; }
+tr.selected { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+td.title { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.table-wrap { overflow-x: auto; }
+pre#log {
+  background: var(--code-bg); padding: 12px; border: 1px solid var(--border);
+  border-radius: 8px; margin: 0; max-height: 420px; overflow: auto;
+  font-family: var(--font-mono); font-size: 12px; white-space: pre-wrap;
+}
+a { color: var(--accent); }
+.links a { margin-right: 12px; }
+.error { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>AIProver orchestration</h1>
+  <p class="sub">Formalize and prove an informal result in Lean 4: captain and auditor
+    Sonnet 5.5 (at most 10 calls), solvers AIProver on TACC Vista. Submissions run after approval, one at a time; the Vista model server is started on demand.</p>
+
+  <section id="login">
+    <h2>Access token</h2>
+    <div class="row">
+      <input id="token" type="password" placeholder="token" style="flex:1">
+      <button id="login-button">Sign in</button>
+    </div>
+    <p id="login-error" class="error"></p>
+  </section>
+
+  <div id="app" class="hidden">
+    <section>
+      <div class="row" style="justify-content:space-between">
+        <div class="health" id="health">checking backend…</div>
+        <div class="row"><span id="user" class="sub" style="margin:0"></span>
+          <button class="plain hidden" id="approver-login">Approver sign-in</button>
+          <button class="plain" id="logout">Sign out</button></div>
+      </div>
+      <div class="sub" id="vista" style="margin:8px 0 0"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>New run</h2>
+      <div class="row tabs">
+        <button id="tab-text" class="on">Informal problem</button>
+        <button id="tab-uuid">Dataset problem</button>
+      </div>
+      <div id="form-text">
+        <label for="statement">Statement</label>
+        <textarea id="statement" placeholder="Setting, definitions and the claim (LaTeX allowed)"></textarea>
+        <label for="proof">Informal proof (optional)</label>
+        <textarea id="proof"></textarea>
+      </div>
+      <div id="form-uuid" class="hidden">
+        <label for="uuid">JiatuBook problem</label>
+        <select id="uuid"></select>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="submit">Submit</button>
+        <span id="submit-message"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Runs</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Run</th><th>Problem</th><th>State</th><th>Result</th><th></th></tr></thead>
+          <tbody id="runs"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="detail" class="hidden">
+      <h2 id="detail-title"></h2>
+      <div class="links" id="detail-links"></div>
+      <pre id="log"></pre>
+    </section>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let selected = null, stream = null, me = null, timers = null;
+
+async function api(path, options = {}) {
+  const response = await fetch(path, {credentials: "same-origin",
+    headers: {"Content-Type": "application/json"}, ...options});
+  if (response.status === 401) { showLogin(); throw new Error("signed out"); }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.detail || response.statusText);
+  return body;
+}
+
+function showLogin() { $("login").classList.remove("hidden"); $("app").classList.add("hidden"); }
+
+async function start() {
+  me = await api("/api/me");
+  $("user").textContent = me.approver ? `${me.user} (approver)`
+    : me.auth_required ? me.user : "open access";
+  $("logout").classList.toggle("hidden", !me.approver);
+  $("approver-login").classList.toggle("hidden", me.approver);
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  const problems = await api("/api/problems");
+  $("uuid").innerHTML = problems.map(p =>
+    `<option value="${p.uuid}">${p.uuid}${p.label ? " — " + escapeHtml(p.label) : ""}</option>`).join("");
+  refreshHealth(); refreshRuns();
+  if (!timers) timers = [setInterval(refreshRuns, 10000), setInterval(refreshHealth, 60000)];
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+}
+
+function indicator(ok, text) {
+  return `<span><i class="dot ${ok ? "ok" : "bad"}"></i>${escapeHtml(text)}</span>`;
+}
+
+async function refreshHealth() {
+  try {
+    const h = await api("/api/health");
+    $("health").innerHTML = indicator(h.control_master, "Vista connection")
+      + indicator(h.endpoint_up, "model endpoint")
+      + `<span>awaiting approval ${h.awaiting_approval}</span>`
+      + `<span>queued ${h.queued}</span>`
+      + `<span>running ${h.running ? escapeHtml(h.running) : "none"}</span>`;
+    const jobs = Object.entries(h.vista_jobs || {}).map(([id, state]) => `${id} ${state}`);
+    $("vista").textContent = `Vista server jobs: ${jobs.length ? jobs.join(", ") : "none"}`
+      + (h.vista && h.vista !== "not checked" ? ` · ${h.vista}` : "");
+  } catch (e) { $("health").textContent = e.message; }
+}
+
+function stateText(run) {
+  const resumed = run.resumptions ? `, resumed ${run.resumptions}×` : "";
+  if (run.state === "queued") return `queued (#${run.position})${resumed}`;
+  return run.state.replace("_", " ") + resumed;
+}
+
+function actions(run) {
+  const buttons = [];
+  if (run.state === "awaiting_approval" && me && me.approver) {
+    buttons.push(`<button data-approve="${run.run_id}">Approve</button>`,
+                 `<button class="plain" data-reject="${run.run_id}">Reject</button>`);
+  }
+  if (["awaiting_approval", "queued", "running"].includes(run.state)) {
+    buttons.push(`<button class="plain" data-cancel="${run.run_id}">Cancel</button>`);
+  }
+  return `<div class="row">${buttons.join("")}</div>`;
+}
+
+async function refreshRuns() {
+  const runs = await api("/api/runs");
+  $("runs").innerHTML = runs.map(run => `
+    <tr class="${run.run_id === selected ? "selected" : ""}">
+      <td><a href="#" data-open="${run.run_id}">${run.run_id}</a></td>
+      <td class="title" title="${escapeHtml(run.title)}">${escapeHtml(run.title)}</td>
+      <td>${stateText(run)}</td>
+      <td>${run.status ? escapeHtml(run.status) : ""}</td>
+      <td>${actions(run)}</td>
+    </tr>`).join("") || `<tr><td colspan="5" class="sub">No runs yet.</td></tr>`;
+  if (selected) {
+    const run = runs.find(r => r.run_id === selected);
+    if (run) renderLinks(run);
+  }
+}
+
+function renderLinks(run) {
+  $("detail-links").innerHTML = run.files.map(name =>
+    `<a href="/api/runs/${run.run_id}/files/${name}" target="_blank">${name}</a>`).join("");
+}
+
+function openRun(runId) {
+  selected = runId;
+  $("detail").classList.remove("hidden");
+  $("detail-title").textContent = runId;
+  $("log").textContent = "";
+  if (stream) stream.close();
+  stream = new EventSource(`/api/runs/${runId}/progress`);
+  stream.onmessage = event => {
+    const log = $("log");
+    const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 20;
+    log.textContent += JSON.parse(event.data) + "\n";
+    if (atBottom) log.scrollTop = log.scrollHeight;
+  };
+  stream.addEventListener("end", () => { stream.close(); refreshRuns(); });
+  refreshRuns();
+}
+
+$("runs").addEventListener("click", async event => {
+  const {open, cancel, approve, reject} = event.target.dataset;
+  if (open) { event.preventDefault(); openRun(open); }
+  if (approve) {
+    await api(`/api/runs/${approve}/approve`, {method: "POST"}).catch(e => alert(e.message));
+    refreshRuns(); refreshHealth();
+  }
+  if (reject && confirm(`Reject ${reject}?`)) {
+    await api(`/api/runs/${reject}/reject`, {method: "POST"}).catch(e => alert(e.message));
+    refreshRuns();
+  }
+  if (cancel && confirm(`Cancel ${cancel}?`)) {
+    await api(`/api/runs/${cancel}`, {method: "DELETE"}).catch(e => alert(e.message));
+    refreshRuns();
+  }
+});
+
+function selectTab(textMode) {
+  $("tab-text").classList.toggle("on", textMode);
+  $("tab-uuid").classList.toggle("on", !textMode);
+  $("form-text").classList.toggle("hidden", !textMode);
+  $("form-uuid").classList.toggle("hidden", textMode);
+}
+$("tab-text").onclick = () => selectTab(true);
+$("tab-uuid").onclick = () => selectTab(false);
+
+$("submit").onclick = async () => {
+  const textMode = $("tab-text").classList.contains("on");
+  const body = textMode
+    ? {statement: $("statement").value, proof: $("proof").value}
+    : {uuid: $("uuid").value};
+  $("submit-message").textContent = "";
+  try {
+    const result = await api("/api/runs", {method: "POST", body: JSON.stringify(body)});
+    $("submit-message").textContent = `Submitted ${result.run_id}; awaiting approval.`;
+    openRun(result.run_id);
+  } catch (e) {
+    $("submit-message").innerHTML = `<span class="error">${escapeHtml(e.message)}</span>`;
+  }
+};
+
+$("login-button").onclick = async () => {
+  $("login-error").textContent = "";
+  try {
+    await api("/api/login", {method: "POST", body: JSON.stringify({token: $("token").value})});
+    $("token").value = "";
+    start();
+  } catch (e) { $("login-error").textContent = e.message; }
+};
+$("token").addEventListener("keydown", e => { if (e.key === "Enter") $("login-button").click(); });
+$("logout").onclick = async () => {
+  await api("/api/logout", {method: "POST"});
+  me.auth_required ? showLogin() : start();
+};
+$("approver-login").onclick = () => { $("login").classList.remove("hidden"); $("token").focus(); };
+
+start().catch(() => showLogin());
+</script>
+</body>
+</html>

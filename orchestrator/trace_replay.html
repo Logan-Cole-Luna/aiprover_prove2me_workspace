@@ -6,7 +6,7 @@
 <title>__PAGE_TITLE__</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap">
 <style>
 /*TRACE_COMMON_CSS*/
 
@@ -178,6 +178,9 @@ svg.exporting *, svg.exporting { transition: none !important; animation: none !i
   .redge, .rnode { transition: none; }
 }
 </style>
+<style>
+/*TRACE_THEME_CSS*/
+</style>
 </head>
 <body>
 <header class="topbar">
@@ -187,7 +190,6 @@ svg.exporting *, svg.exporting { transition: none !important; animation: none !i
   <span class="spacer"></span>
   <span class="run" id="models"></span>
   <a class="btn" href="trace.html">Walkthrough</a>
-  <a class="btn" href="trace_graph.html">Graph view</a>
 </header>
 
 <div class="workspace">
@@ -253,7 +255,7 @@ if (!TRACE) {
   document.body.innerHTML = `<main style="padding:48px 24px;max-width:62ch;font:16px/1.6 system-ui,sans-serif">
     <h1 style="font-size:1.4rem">No run data in this file</h1>
     <p>This is a page template. The rendered pages for each run are in
-    <code>results/&lt;run_id&gt;/</code>: <code>trace.html</code>, <code>trace_graph.html</code>
+    <code>results/&lt;run_id&gt;/</code>: <code>trace.html</code>
     and <code>trace_replay.html</code>. Generate them with</p>
     <pre style="background:#eef0f4;padding:10px 12px;border-radius:6px">python3 -m orchestrator.trace_view results/&lt;run_id&gt;/trace.json</pre>
   </main>`;
@@ -278,19 +280,20 @@ const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").ma
 // Layout (top → bottom) -----------------------------------------------------------------
 
 // Node widths, and the text lines each kind of node shows, top to bottom.
-const NODE_WIDTH = { problem: 250, root: 250, spine: 230, lemma: 230, attempt: 140, assemble: 260, final: 280 };
+const NODE_WIDTH = { problem: 250, root: 250, spine: 230, lemma: 230, job: 290, attempt: 140, assemble: 260, final: 280 };
 const NODE_LINES = {
   problem: ["eyebrow", "title", "subtitle"],
   root: ["eyebrow", "title", "subtitle", "status"],
   spine: ["title", "subtitle", "status"],
   lemma: ["title", "subtitle", "status"],
+  job: ["title", "subtitle", "status"],
   attempt: ["title", "subtitle", "status"],
   assemble: ["eyebrow", "title", "subtitle", "status"],
   final: ["eyebrow", "title", "subtitle", "status"],
 };
 const LINE_HEIGHT = { eyebrow: 16, title: 19, subtitle: 16, status: 16 };
 const PAD_TOP = 9, PAD_BOTTOM = 14;   // bottom padding holds the progress bar
-const LANE = 160, LEMMA_GAP = 90, ROW = 118;
+const LANE = 160, ROW = 118;
 
 const nodes = [];
 const edges = [];
@@ -319,6 +322,13 @@ function callNode(call, fields) {
   };
 }
 
+// Each accepted sketch is drawn as a tree: the sketch fans out left to right
+// into its lemmas, and the attempts on each lemma stack downward beneath it
+// (AIProver: one block per job, its parallel sessions below; chat solvers:
+// one lane per chain). A replan starts the next sketch's tree below; lemmas
+// it keeps from an earlier sketch appear as single nodes.
+const LEMMA_GAP = 90, KEPT_GAP = 30;
+
 function buildLayout() {
   let y = 0;
   const problemNode = addNode({ id: "problem", kind: "problem", x: 0, y, start: 0, end: 0,
@@ -328,58 +338,179 @@ function buildLayout() {
     title: "Captain", subtitle: `orchestrator · ${TRACE.models?.orchestrator}` });
   addEdge(problemNode, root, "captain", { label: "statement + proof" });
 
-  // Captain and auditor work, in time order; the auditor branches to the right.
-  const spineCalls = calls.filter(c => c.role === "captain" || c.role === "auditor").sort((a, b) => a.index - b.index);
-  let previous = root, lastCaptain = root;
-  for (const call of spineCalls) {
+  const sketchEvents = eventsOf("sketch_accepted");
+  const spineCalls = calls.filter(c => (c.role === "captain" || c.role === "auditor") && !isHandback(c))
+    .sort((a, b) => a.index - b.index);
+  // Captain and auditor calls up to each accepted sketch; the auditor branches right.
+  const segments = sketchEvents.map((event, k) => spineCalls.filter(c => c.index < event.index
+    && (k === 0 || c.index > sketchEvents[k - 1].index)));
+  const tail = spineCalls.filter(c => !sketchEvents.length || c.index > sketchEvents.at(-1).index);
+  let previous = root, lastCaptain = root, bypass = null;
+  const placeSpine = call => {
     y += ROW;
     const isAuditor = call.role === "auditor";
     const kindText = /^formalize/.test(call.label) ? "Formalize" : /^judge/.test(call.label) ? "Faithfulness verdict"
-      : /^sketch/.test(call.label) ? "Proof sketch" : isAuditor ? "Blind read-back" : call.label;
+      : /^sketch/.test(call.label) ? (lastCaptain.sketch ? "Revised sketch" : "Proof sketch") : isAuditor ? "Blind read-back" : call.label;
     const node = addNode({ id: `s${call.index}`, kind: "spine", x: isAuditor ? 300 : 0, y, ...callNode(call, {
-      title: kindText, subtitle: `${call.role} · ${call.label}`, band: /^formalize/.test(call.label) ? "Formalize"
+      title: kindText, subtitle: `${call.role} · ${call.label}`, sketch: /^sketch/.test(call.label),
+      band: /^formalize/.test(call.label) ? "Formalize"
         : isAuditor || /^judge/.test(call.label) ? "Audit" : /^sketch/.test(call.label) ? "Sketch" : null }) });
-    addEdge(previous, node, call.role, { label: isAuditor ? "delegates code only" : previous.role === "auditor" ? "read-back" : "" });
+    // After a sketch's tree, the edge to the replan runs down its left side.
+    addEdge(previous, node, call.role, bypass != null ? { route: "bus", bus: bypass, label: "replan" }
+      : { label: isAuditor ? "delegates code only" : previous.role === "auditor" ? "read-back" : "" });
+    bypass = null;
     previous = node;
     if (!isAuditor) lastCaptain = node;
-  }
+  };
 
-  // Sketch fans out into lemmas; each lemma fans out into solver lanes.
-  const lemmaNames = lemmaOrder.filter(name => calls.some(c => c.lemma === name));
-  const workers = [...new Set(calls.filter(c => c.lemma != null).map(c => c.worker))].sort((a, b) => a - b);
-  const blockWidth = workers.length * LANE;
-  const sketchTime = (eventsOf("sketch_accepted").at(-1) || {}).elapsed_seconds ?? lastCaptain.end;
-  y += ROW + 20;
-  const lemmaY = y;
-  const attemptTop = lemmaY + ROW;
-  let deepest = attemptTop;
-  const winners = [];
-  lemmaNames.forEach((name, i) => {
-    const x = (i - (lemmaNames.length - 1) / 2) * (blockWidth + LEMMA_GAP);
-    const win = lemmaWins.get(name);
-    const lemmaNode = addNode({ id: `lemma:${name}`, kind: "lemma", role: "solver", x, y: lemmaY,
-      start: sketchTime, end: win ? win.elapsed_seconds : runEnd, lemma: name, win,
-      title: name, subtitle: `${workers.length} solvers in parallel`, band: i === 0 ? "Prove" : null });
-    addEdge(lastCaptain, lemmaNode, "captain", { label: i === Math.floor(lemmaNames.length / 2) ? "delegates lemmas" : "" });
-    workers.forEach((worker, k) => {
-      const laneX = x + (k - (workers.length - 1) / 2) * LANE;
-      let upstream = lemmaNode;
-      calls.filter(c => c.lemma === name && c.worker === worker).sort((a, b) => a.index - b.index)
-        .forEach((call, r) => {
-          const ay = attemptTop + r * ROW;
-          deepest = Math.max(deepest, ay);
-          const node = addNode({ id: `a${call.index}`, kind: "attempt", x: laneX, y: ay, ...callNode(call, {
-            title: `solver ${worker} · r${call.round}`, subtitle: `#${call.index} · ${formatClock(callStart(call))}`, lemma: name, worker }) });
-          const repair = upstream.kind === "attempt";
-          addEdge(upstream, node, "solver", repair ? { repair: true, label: "errors" } : {});
-          upstream = node;
-          if (win && sameAttempt(win, call)) winners.push(node);
+  const workers = jobsByLemma.size ? sampleLanes()
+    : [...new Set(calls.filter(c => c.lemma != null).map(c => c.worker))].sort((a, b) => a - b);
+  const blockWidth = Math.max(NODE_WIDTH.lemma, workers.length * LANE);
+  const runEndTime = outcome.wall_seconds ?? runEnd;
+  let winners = [], keptNodes = [];
+
+  sketchEvents.forEach((event, k) => {
+    segments[k].forEach(placeSpine);
+    const sketchNode = lastCaptain;
+    const next = sketchEvents[k + 1];
+    const replanAt = next ? (decisions.find(d => d.event === "replan" && d.index > event.index && d.index < next.index)
+      || next).elapsed_seconds : null;
+    const inSection = step => step.index > event.index && (!next || step.index < next.index);
+    // The sketch's lemmas, with lemmas split off by a hand-back before their parent.
+    const splits = decisions.filter(d => d.event === "lemma_handback" && d.action === "split" && inSection(d));
+    const statements = [...(event.lemmas || [])];
+    for (const split of splits) {
+      const at = statements.findIndex(st => lemmaName(st) === split.lemma);
+      statements.splice(Math.max(0, at), 0, ...(split.new_lemmas || []));
+    }
+    const names = statements.map(lemmaName).filter(Boolean);
+    const statementOf = name => statements.find(st => lemmaName(st) === name);
+    const splitFrom = new Map(splits.flatMap(split => (split.new_lemmas || []).map(st => [lemmaName(st), split])));
+    const reused = new Set(decisions.filter(d => d.event === "lemma_reused" && inSection(d)).map(d => d.lemma));
+    const earlier = name => sketchEvents.slice(0, k).some(e => (e.lemmas || []).some(st => lemmaName(st) === name));
+    winners = []; keptNodes = [];
+    const handbackNodes = new Map(), pendingSplitEdges = [];
+
+    // Lemma columns left to right, centred under the sketch.
+    const widths = names.map(name => reused.has(name) ? NODE_WIDTH.lemma : blockWidth);
+    // Kept lemmas sit closer together than lemmas with attempts beneath them.
+    const gaps = names.map((name, i) => !i ? 0 : reused.has(name) && reused.has(names[i - 1]) ? KEPT_GAP : LEMMA_GAP);
+    const total = sum(widths) + sum(gaps);
+    let cursor = -total / 2;
+    const lemmaY = y + ROW + 20, attemptTop = lemmaY + ROW;
+    let deepest = lemmaY, minX = 0;
+    names.forEach((name, i) => {
+      cursor += gaps[i];
+      const x = cursor + widths[i] / 2;
+      cursor += widths[i];
+      minX = Math.min(minX, x - widths[i] / 2);
+      const middle = i === Math.floor(names.length / 2);
+      if (reused.has(name)) {
+        const node = addNode({ id: `lemma:${k}:${name}`, kind: "lemma", role: "solver", x, y: lemmaY,
+          start: event.elapsed_seconds, end: event.elapsed_seconds, lemma: name, carried: true,
+          statement: statementOf(name), win: lemmaWins.get(name), title: name,
+          subtitle: "proved in an earlier sketch", band: i === 0 ? "Prove" : null });
+        addEdge(sketchNode, node, "captain", { label: middle ? "kept and delegated lemmas" : "" });
+        keptNodes.push(node);
+        return;
+      }
+      const win = lemmaWins.get(name);
+      const sectionWin = win && inSection(win) ? win : null;
+      const lemmaNode = addNode({ id: `lemma:${k}:${name}`, kind: "lemma", role: "solver", x, y: lemmaY,
+        start: splitFrom.get(name)?.elapsed_seconds ?? event.elapsed_seconds,
+        end: sectionWin ? sectionWin.elapsed_seconds : (replanAt ?? runEndTime),
+        closeAt: sectionWin ? null : (replanAt ?? (outcome.status ? runEndTime : null)), replanned: replanAt != null,
+        lemma: name, win: sectionWin, title: name, statement: statementOf(name),
+        subtitle: splitFrom.has(name) ? `split from ${splitFrom.get(name).lemma}` : earlier(name) ? "restated after replan" : k ? "new in this sketch" : jobsByLemma.size
+          ? `AIProver · ${cfg.workers ?? 1} sessions per job` : `${workers.length} solvers in parallel`,
+        band: i === 0 ? "Prove" : null });
+      if (splitFrom.has(name)) pendingSplitEdges.push([splitFrom.get(name), lemmaNode]);
+      else addEdge(sketchNode, lemmaNode, "captain", { label: middle ? (k ? "kept and delegated lemmas" : "delegates lemmas") : "" });
+
+      if (jobsByLemma.size) {
+        // Jobs and hand-backs stack downward; every session of a job feeds
+        // the next item.
+        let upstream = [lemmaNode], previousItem = null, jy = attemptTop;
+        const items = calls.filter(c => inSection(c) && ((isJob(c) && c.lemma === name) || handbackLemma(c) === name))
+          .sort((a, b) => a.index - b.index);
+        items.forEach(item => {
+          if (isHandback(item)) {
+            const decision = decisions.find(d => d.event === "lemma_handback" && d.lemma === name && d.index > item.index);
+            const node = addNode({ id: `h${item.index}`, kind: "spine", x, y: jy, ...callNode(item, {
+              role: "captain", title: "Hand-back to captain",
+              subtitle: decision ? `captain · ${decision.action}` : "captain", handback: decision || null, lemma: name }) });
+            upstream.forEach((up, u) => addEdge(up, node, "captain",
+              u === Math.floor((upstream.length - 1) / 2) ? { label: "hand-back" } : {}));
+            if (decision?.action === "proof" || decision?.action === "split") winners.push(node);
+            if (decision) handbackNodes.set(decision.index, node);
+            upstream = [node]; previousItem = item; jy += ROW;
+            deepest = Math.max(deepest, node.y);
+            return;
+          }
+          const job = item;
+          const lanes = jobLanes(job);
+          const outcomes = lanes.map(w => sampleOutcome(job, w));
+          const start = Math.min(...outcomes.map(o => o.start));
+          const jobNode = addNode({ id: `j${job.index}`, kind: "job", x, y: jy, step: job, role: "solver",
+            start, replied: job.elapsed_seconds, end: job.elapsed_seconds, outcomes, lemma: name,
+            title: `AIProver job ${jobNumber(job)}`,
+            subtitle: `${formatClock(start)} · ${formatDuration(job.elapsed_seconds - start)} · ${plural(lanes.length, "session")}` });
+          const label = !previousItem ? "" : isHandback(previousItem) ? "after hand-back" : transitionText(previousItem, job);
+          upstream.forEach((up, u) => addEdge(up, jobNode, "solver",
+            label && u === Math.floor((upstream.length - 1) / 2) ? { label } : {}));
+          // Sessions spread under the job; many sessions are packed closer.
+          const spacing = Math.min(LANE, (blockWidth + LEMMA_GAP - 20) / lanes.length);
+          upstream = lanes.map((sampleIndex, w) => {
+            const outcome = outcomes[w];
+            const ay = jy + ROW;
+            deepest = Math.max(deepest, ay);
+            const node = addNode({ id: `a${job.index}s${sampleIndex}`, kind: "attempt",
+              x: x + (w - (lanes.length - 1) / 2) * spacing, y: ay,
+              step: job, check: outcome.check, role: "solver", sample: sampleIndex, outcome,
+              start: outcome.start, replied: outcome.end,
+              end: outcome.check ? outcome.check.elapsed_seconds : outcome.end,
+              title: `session ${sampleIndex}`,
+              subtitle: `${formatClock(outcome.start)} · ${formatDuration(outcome.end - outcome.start)}${outcome.turns != null ? ` · ${outcome.turns}t` : ""}`,
+              lemma: name, worker: sampleIndex });
+            addEdge(jobNode, node, "solver");
+            if (outcome.state === "win") winners.push(node);
+            return node;
+          });
+          previousItem = job; jy += 2 * ROW;
         });
+        return;
+      }
+      // Chat solvers: one lane per chain, its repair rounds stacked downward.
+      workers.forEach((worker, w) => {
+        const laneX = x + (w - (workers.length - 1) / 2) * LANE;
+        let upstream = lemmaNode;
+        calls.filter(c => c.lemma === name && c.worker === worker && inSection(c))
+          .sort((a, b) => a.index - b.index).forEach((call, r) => {
+            const ay = attemptTop + r * ROW;
+            deepest = Math.max(deepest, ay);
+            const node = addNode({ id: `a${call.index}`, kind: "attempt", x: laneX, y: ay, ...callNode(call, {
+              title: `solver ${worker} · r${call.round}`, subtitle: `#${call.index} · ${formatClock(callStart(call))}`,
+              lemma: name, worker }) });
+            const label = upstream.kind === "attempt" ? transitionText(upstream.step, call) : "";
+            addEdge(upstream, node, "solver", label ? { repair: label === "errors", label } : {});
+            upstream = node;
+            if (sectionWin && sameAttempt(sectionWin, call)) winners.push(node);
+          });
+      });
     });
+    // A split lemma hangs from the hand-back that created it.
+    for (const [split, lemmaNode] of pendingSplitEdges) {
+      const from = handbackNodes.get(split.index);
+      if (from) addEdge(from, lemmaNode, "captain", { label: "split" });
+      else addEdge(sketchNode, lemmaNode, "captain");
+    }
+    y = deepest + 30;
+    bypass = minX - 40;
   });
+  tail.forEach(placeSpine);
 
-  // Winning proofs converge on assembly, then on the verified result.
-  y = deepest + ROW + 30;
+  // The lemmas of the final sketch are spliced into it and verified.
+  y += ROW;
   const assembleSteps = steps.filter(s => s.stage === "assemble");
   const finalCheck = assembleSteps.find(s => s.kind === "lean_check");
   const verification = eventsOf("final_verification").at(-1);
@@ -388,8 +519,8 @@ function buildLayout() {
       start: finalCheck ? finalCheck.elapsed_seconds - (finalCheck.seconds || 0) : assembleSteps[0].elapsed_seconds,
       end: finalCheck ? finalCheck.elapsed_seconds : assembleSteps[0].elapsed_seconds,
       step: finalCheck, title: "Assemble and verify", subtitle: "Lean · proofs spliced into sketch", band: "Verify" });
-    winners.forEach(w => addEdge(w, assemble, "ok", { win: true }));
-    if (!winners.length) addEdge(lastCaptain, assemble, "lean");
+    [...winners, ...keptNodes].forEach(node => addEdge(node, assemble, "ok", { win: true }));
+    if (!winners.length && !keptNodes.length) addEdge(lastCaptain, assemble, "lean");
     if (verification) {
       y += ROW + 6;
       const final = addNode({ id: "final", kind: "final", role: "lean", x: 0, y,
@@ -408,8 +539,24 @@ function nodeState(node, t) {
   if (t < node.start) return { phase: "hidden" };
   if (node.kind === "problem" || node.kind === "root") return { phase: "done", status: "neutral", line: node.kind === "root" ? `${callsByRole("captain").length} calls in this run` : "" };
   if (node.kind === "lemma") {
-    if (node.win && t >= node.win.elapsed_seconds) return { phase: "done", status: "ok", line: `proved · solver ${node.win.worker}, r${node.win.round}` };
+    if (node.carried) return { phase: "done", status: "ok", line: "kept ✓" };
+    if (node.win && t >= node.win.elapsed_seconds) return { phase: "done", status: "ok", line: `proved · ${winnerText(node.win)}` };
+    if (node.closeAt != null && t >= node.closeAt)
+      return { phase: "done", status: "fail", line: node.replanned ? "not proved · to replan" : "not proved" };
     return { phase: "running", status: "run", line: "solvers working", progress: null };
+  }
+  if (node.kind === "job") {
+    if (t < node.replied) {
+      const working = node.outcomes.filter(o => t < o.end).length;
+      return { phase: "running", status: "run", line: `${plural(working, "session")} working`,
+        progress: (t - node.start) / Math.max(1, node.replied - node.start) };
+    }
+    const states = node.outcomes.map(o => o.state);
+    const status = states.includes("win") ? "win" : states.includes("ok") ? "ok"
+      : states.every(state => state === "late") ? "late" : "fail";
+    const line = status === "win" ? "proof kept ✓" : status === "late" ? "after lemma proved"
+      : status === "ok" ? "compiles" : "no proof kept";
+    return { phase: "done", status, line };
   }
   if (node.kind === "final") return { phase: "done", status: node.step.checks?.verified ? "ok" : "fail", line: "no sorry · statement matches" };
   if (node.kind === "assemble") {
@@ -417,18 +564,35 @@ function nodeState(node, t) {
     return { phase: "done", status: node.step?.ok ? "ok" : "fail", line: node.step?.ok ? "compiles, no sorry" : "Lean errors" };
   }
   // Model-call nodes.
+  if (node.handback !== undefined && t >= node.replied) {
+    const action = node.handback?.action;
+    const line = { proof: "captain's proof kept ✓", split: "split; proof kept ✓", restate: "lemma restated",
+      retry: "retry unchanged", rejected: "reply rejected by Lean" }[action] || "reply received";
+    return { phase: "done", status: action === "proof" || action === "split" ? "ok" : action === "rejected" ? "fail" : "neutral", line };
+  }
   if (t < node.replied) {
     const progress = (t - node.start) / Math.max(1, node.replied - node.start);
     return { phase: "running", status: "run", line: `thinking · ${formatClock(t - node.start)}`, progress };
   }
   if (node.check && t < node.check.elapsed_seconds) return { phase: "compiling", status: "lean", line: "Lean compiling…" };
+  if (node.outcome) {
+    const { state, check, text } = node.outcome;
+    const win = lemmaWins.get(node.step.lemma);
+    if (state === "win" && t < win.elapsed_seconds) return { phase: "done", status: "ok", line: "compiles" };
+    const line = { win: "proof kept ✓", ok: "compiles", fail: `✗ ${plural((check?.errors || []).length, "error")}`,
+      late: `${text} · after lemma proved` }[state] || text;
+    const status = { win: "win", ok: "ok", fail: "fail" }[state] || "late";
+    return { phase: "done", status, line };
+  }
   if (node.step.lemma != null) {
     const state = solverOutcome(node.step).state;
     const win = lemmaWins.get(node.step.lemma);
     if (state === "win" && t < win.elapsed_seconds) return { phase: "done", status: "ok", line: "compiles" };
     const errors = (node.check?.errors || []).length;
-    const text = { win: "proof kept ✓", ok: "compiles", fail: `✗ ${plural(errors, "error")}`, late: "discarded", rejected: "rejected", pending: "no check" }[state];
-    return { phase: "done", status: state === "late" ? "late" : state === "win" ? "win" : state === "fail" ? "fail" : "ok", line: text };
+    const text = state === "pending" && isJob(node.step) ? jobSummary(node.step)
+      : { win: "proof kept ✓", ok: "compiles", fail: `✗ ${plural(errors, "error")}`, late: "discarded", rejected: "rejected", pending: "no proof returned" }[state];
+    const status = { late: "late", win: "win", fail: "fail", ok: "ok", rejected: "late", pending: "late" }[state];
+    return { phase: "done", status, line: text };
   }
   if (node.check) return { phase: "done", status: node.check.ok ? "ok" : "fail", line: node.check.ok ? (node.check.sorry_warning ? "compiles (sorry)" : "compiles") : `✗ ${plural(node.check.errors.length, "error")}` };
   const verdict = eventsOf("audit_verdict").find(v => v.index > node.step.index);
@@ -440,8 +604,17 @@ function nodeState(node, t) {
 
 const clip = (text, max) => text.length > max ? text.slice(0, max - 1) + "…" : text;
 
+// Edges run top to bottom; a `bus` edge leaves a node's left side, runs down a
+// vertical line at x = `bus` (left of a sketch's tree) and enters the
+// target's left side.
 function edgeGeometry(edge) {
   const a = edge.from, b = edge.to;
+  if (edge.route === "bus") {
+    const x1 = a.x - a.w / 2, x2 = b.x - b.w / 2 - 3, bus = Math.min(edge.bus, x1 - 12);
+    const enter = b.y, r = 8;
+    return { d: `M${x1},${a.y} H${bus + r} Q${bus},${a.y} ${bus},${a.y + r} V${enter - r} Q${bus},${enter} ${bus + r},${enter} H${x2}`,
+      lx: bus + 10, ly: enter - 12 };
+  }
   const x1 = a.x, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y - b.h / 2 - 3;
   const mid = (y1 + y2) / 2;
   return { d: `M${x1},${y1} C${x1},${mid} ${x2},${mid} ${x2},${y2}`, lx: (x1 + x2) / 2 + 6, ly: mid };
@@ -486,8 +659,9 @@ function nodeMarkup(node) {
 const BANDS = [];
 function bandMarkup() {
   // Phase labels to the left of the first node of each phase.
+  // A phase that recurs after another (a later sketch) is labelled again.
   return nodes.filter(n => n.band).map(n => {
-    if (BANDS.some(b => b.name === n.band)) return "";
+    if (BANDS.at(-1)?.name === n.band) return "";
     BANDS.push({ name: n.band, y: n.y, start: n.start });
     return `<text class="band-label" x="${n.x - n.w / 2 - 18}" y="${n.y + 4}" text-anchor="end">${n.band.toUpperCase()}</text>`;
   }).join("");
@@ -539,11 +713,12 @@ function updateGraph(t) {
   }
   const packetSpan = PACKET_SECONDS * speed;
   for (const edge of edges) {
-    const visible = t >= edge.to.start;
+    const shownAt = edge.at ?? edge.to.start;
+    const visible = t >= shownAt;
     edge.el.classList.toggle("hidden", !visible);
     edge.el.setAttribute("stroke-dashoffset", visible ? 0 : 1);
     edge.labelEl?.classList.toggle("hidden", !visible);
-    const since = t - edge.to.start;
+    const since = t - shownAt;
     const moving = !reducedMotion && playing && since >= 0 && since < packetSpan && edge.length;
     if (moving) {
       const point = edge.el.getPointAtLength(since / packetSpan * edge.length);
@@ -559,7 +734,8 @@ function updateGraph(t) {
 // Narration ---------------------------------------------------------------------------
 
 function describe(step) {
-  const who = step.lemma != null ? `Solver ${step.worker} on ${step.lemma}` : null;
+  const who = step.lemma == null ? null
+    : isJob(jobOf(step)) ? `AIProver job ${jobNumber(jobOf(step))} on ${step.lemma}` : `Solver ${step.worker} on ${step.lemma}`;
   if (step.kind === "model_call") {
     const call = step;
     const started = [callStart(call)];
@@ -571,6 +747,10 @@ function describe(step) {
       text: "The captain compares the auditor's read-back with the source statement: does the Lean code say exactly what the source says?" };
     if (/^sketch/.test(call.label)) return { t: started[0], role: "captain", title: "Captain sketches the proof",
       text: "The captain splits the proof into lemmas, each stated in full but left as sorry, and proves the main theorem from them." };
+    if (isHandback(call)) return { t: started[0], role: "captain", title: `${handbackLemma(call)} handed back to the captain`,
+      text: "The solvers failed on this lemma repeatedly. The captain reads their attempts and proves the lemma itself, splits it, restates it, or asks for a retry." };
+    if (isJob(call)) return { t: started[0], role: "solver", title: who,
+      text: `AIProver runs ${plural((call.samples || []).length || (cfg.workers ?? 1), "independent agentic Lean session")} on the lemma; ${jobSummary(call)}.` };
     if (call.lemma != null) return { t: started[0], role: "solver", title: `${who}, round ${call.round}`,
       text: call.round === 0 ? "The solver proposes a proof of the lemma from its statement, the definitions and the informal proof."
         : "The solver receives its previous proof with Lean's error messages and proposes a repair." };
@@ -579,9 +759,17 @@ function describe(step) {
     if (step.lemma != null) {
       const call = callOfCheck.get(step.index);
       const late = call && solverOutcome(call).state === "late";
-      return { t: step.elapsed_seconds, role: "lean", title: `Lean checks ${step.lemma} (solver ${step.worker}, r${step.round})`,
+      const job = jobOf(step);
+      if (captainCheck(step)) return { t: step.elapsed_seconds, role: "lean",
+        title: `Lean checks the captain's ${/_restated$/.test(step.label) ? "restated sketch" : "proof"} for ${step.lemma}`,
+        text: step.ok ? "It compiles." : `Lean reports ${plural(step.errors.length, "error")}.` };
+      return { t: step.elapsed_seconds, role: "lean",
+        title: job ? `Lean checks ${step.lemma} (AIProver job ${jobNumber(job)}, sample ${step.worker})`
+          : `Lean checks ${step.lemma} (solver ${step.worker}, r${step.round})`,
         text: late ? "This chain replied after the lemma was already proved; its result is discarded."
-          : step.ok ? "The proof compiles." : `Lean reports ${plural(step.errors.length, "error")}; they are sent back to the solver.` };
+          : step.ok ? "The proof compiles."
+          : job ? `Lean reports ${plural(step.errors.length, "error")} in the proof extracted from this sample.`
+          : `Lean reports ${plural(step.errors.length, "error")}; they are sent back to the solver.` };
     }
     if (step.stage === "assemble") return { t: step.elapsed_seconds, role: "lean", title: "Lean compiles the assembled solution",
       text: `The kept proofs replace every sorry in the sketch. ${step.ok ? "The complete file compiles" : "The file fails"}${step.sorry_warning ? "" : " with no sorry"}.` };
@@ -592,11 +780,16 @@ function describe(step) {
   if (step.event === "audit_verdict") return { t: step.elapsed_seconds, role: "captain", title: `Verdict: ${step.verdict}`,
     text: step.verdict === "FAITHFUL" ? "The read-back matches the source, so the formal statement is accepted." : "The formalization is sent back for revision." };
   if (step.event === "sketch_accepted") return { t: step.elapsed_seconds, role: "captain", title: `${plural((step.lemmas || []).length, "lemma")} delegated`,
-    text: `Each lemma goes to ${cfg.workers ?? "several"} independent solver chains running in parallel; the first proof that compiles is kept.` };
+    text: jobsByLemma.size
+      ? `Each lemma goes to an AIProver job of ${plural(cfg.workers ?? 1, "sample")}; the first sample whose proof compiles is kept.`
+      : `Each lemma goes to ${cfg.workers ?? "several"} independent solver chains running in parallel; the first proof that compiles is kept.` };
   if (step.event === "lemma_proved") return { t: step.elapsed_seconds, role: "solver", title: `${step.lemma} proved`,
-    text: `Solver ${step.worker}'s round-${step.round} proof is kept. The other chains on this lemma stop.` };
+    text: jobOf(step) ? `The proof from ${winnerText(step)} is kept.`
+      : `Solver ${step.worker}'s round-${step.round} proof is kept. The other chains on this lemma stop.` };
   if (step.event === "final_verification") return { t: step.elapsed_seconds, role: "lean", title: step.checks?.verified ? "Verified" : "Verification failed",
     text: step.checks?.verified ? `The solution compiles without sorry, uses only ${(step.checks.axioms || []).join(", ")}, and its type equals the audited theorem.` : "One or more final checks failed." };
+  if (step.event === "lemma_handback") return { t: step.elapsed_seconds, role: "captain",
+    title: `Hand-back of ${step.lemma}: ${step.action}`, text: step.diagnosis || "" };
   if (step.event === "replan") return { t: step.elapsed_seconds, role: "captain", title: "Captain revises the sketch",
     text: "Some lemmas were not proved within budget; the captain writes a new decomposition." };
   return null;
@@ -757,10 +950,10 @@ function openNode(node) {
        ${stepList(callsByRole("captain"))}`);
   }
   if (node.kind === "lemma") {
-    const statement = (finalSketch?.lemmas || []).find(l => lemmaName(l) === node.lemma);
+    const statement = node.statement || (finalSketch?.lemmas || []).find(l => lemmaName(l) === node.lemma);
     return showDrawer(summaryHead(`<code>${escapeHTML(node.lemma)}</code>`, `<span>${plural(calls.filter(c => c.lemma === node.lemma).length, "solver call")}</span>`, "solver"),
       `${statement ? `<div class="tagblock"><span class="tagname">statement</span>${leanHTML(statement)}</div>` : ""}
-       ${node.win ? `<div class="tagblock"><span class="tagname">kept proof · solver ${node.win.worker}, round ${node.win.round}</span>${leanHTML(node.win.proof || "")}</div>` : ""}
+       ${node.win ? `<div class="tagblock"><span class="tagname">kept proof · ${winnerText(node.win)}</span>${leanHTML(node.win.proof || "")}</div>` : ""}
        ${stepList(steps.filter(s => s.lemma === node.lemma))}`);
   }
   if (node.kind === "final") {
@@ -769,7 +962,7 @@ function openNode(node) {
         .map(([k, v]) => `<tr><td class="num">${k}</td><td>${v ? `<span class="pill ok">pass</span>` : `<span class="pill fail">fail</span>`}</td></tr>`).join("")}</table>
        ${leanHTML(node.step.solution || "", new Set(), "tall")}`);
   }
-  if (node.step) showStep(node.step.index);
+  if (node.step) showStep(node.step.index, node.sample ?? null);
 }
 
 // Export ------------------------------------------------------------------------------

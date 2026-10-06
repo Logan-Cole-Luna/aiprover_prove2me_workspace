@@ -1,0 +1,66 @@
+/* Editorial theme shared by trace.html and trace_replay.html: warm paper, display serif,
+   vermilion accent, soft cards. Applied after the page styles; the triple :root outranks
+   the dark-mode palette in trace_common.css, so the pages stay light. */
+:root:root:root {
+  color-scheme: light;
+  --bg: #f5efe4; --surface: #fffaf1; --surface-2: #ece4d4; --ink: #1d1a16;
+  --muted: #74695a; --line: #ddd2bf; --accent: #c8401c; --accent-soft: #f7e0d4;
+  --captain: #c8401c; --auditor: #6a4c93; --solver: #2f7d6d; --lean: #b5831f;
+  --ok: #2f7d4d; --ok-soft: #e1efe2; --fail: #b3261e; --fail-soft: #f7dcd7;
+  --warn: #a8660a; --warn-soft: #f6e6c8; --code-bg: #f9f4ea; --err-line: #f7dcd7;
+  --kw: #c8401c; --cm: #8b7f6e; --str: #2f7d6d;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-prose: "Newsreader", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Fraunces", Georgia, serif;
+}
+body { font-size: 15px; }
+.topbar { background: var(--bg); border-bottom: 1px solid var(--ink); padding: 14px 24px; }
+.topbar .thm { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; font-style: italic; letter-spacing: -0.01em; }
+.topbar .run { font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.72rem; }
+.btn, a.btn { border-radius: 999px; background: var(--surface); border-color: var(--line); font-size: 0.85rem; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; filter: none; }
+.eyebrow { color: var(--accent); font-weight: 700; letter-spacing: 0.14em; }
+
+.stage { background-color: var(--bg); background-image: radial-gradient(rgba(29,26,22,0.12) 1px, transparent 1px); background-size: 18px 18px; }
+.stage-tools .btn { box-shadow: 0 1px 2px rgba(60,40,10,0.08); }
+
+.rnode rect.body { fill: var(--surface); stroke-width: 1.2; filter: drop-shadow(0 2px 3px rgba(60, 40, 10, 0.12)); }
+.rnode text { font-family: var(--font-ui); }
+.rnode .t1 { font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+.rnode .t1.mono { font-family: var(--font-mono); font-size: 12px; }
+.rnode .t2 { font-family: var(--font-prose); font-style: italic; font-size: 12px; }
+.rnode.root rect.body { fill: var(--accent-soft); }
+.redge { opacity: 0.7; stroke-width: 1.8; stroke-linecap: round; }
+.rlabel { font-family: var(--font-prose); font-style: italic; font-size: 12px; }
+.band { fill: var(--surface-2); opacity: 0.45; }
+.band-label { font-family: var(--font-display); font-style: italic; font-weight: 600; letter-spacing: 0; font-size: 16px; fill: var(--ink); }
+
+.side { background: var(--surface); border-left: 1px solid var(--line); }
+.narration { padding: 22px 24px; }
+.narration h3 { font-family: var(--font-display); font-size: 1.45rem; font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; }
+.narration p { font-family: var(--font-prose); font-size: 1.04rem; color: var(--ink); line-height: 1.5; }
+.log button { padding: 6px 24px; font-size: 0.84rem; }
+.log button.now { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+
+.transport { background: var(--bg); border-top: 1px solid var(--ink); }
+.transport select { border-radius: 999px; background: var(--surface); }
+.phases span { font-weight: 600; letter-spacing: 0.04em; }
+.phases span.on { background: var(--accent); color: #fff; }
+
+aside.drawer { box-shadow: -20px 0 50px rgba(60, 40, 10, 0.18); }
+.drawer-head { background: var(--surface); }
+.drawer-head h3 { font-family: var(--font-display); font-size: 1.2rem; }
+.tabs button[aria-selected="true"] { border-bottom-color: var(--accent); }
+.panel, details.fold, .steps, .checks, .table-wrap, .gantt-wrap { border-radius: 12px; box-shadow: 0 1px 3px rgba(60,40,10,0.06); }
+.prose { font-size: 1.1rem; line-height: 1.65; }
+.scrim { background: rgba(40, 28, 10, 0.3); }
+
+h1, h2 { font-family: var(--font-display); letter-spacing: -0.01em; }
+nav.chapters button[aria-current="step"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+nav.chapters button .n { color: var(--accent); }
+.stepper { background: var(--bg); border-top: 1px solid var(--ink); }
+.chip { border-radius: 999px; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.steprow:hover { background: var(--accent-soft); }
