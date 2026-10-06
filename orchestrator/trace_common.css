@@ -172,12 +172,12 @@ main { min-width: 0; }
 .pill.neutral { background: var(--surface-2); color: var(--muted); }
 .role { font-weight: 600; }
 .role.captain { color: var(--captain); }
-.role.auditor { color: var(--auditor); }
+.role.auditor, .role.reviewer { color: var(--auditor); }
 .role.solver { color: var(--solver); }
 .role.lean { color: var(--lean); }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 .dot.captain { background: var(--captain); }
-.dot.auditor { background: var(--auditor); }
+.dot.auditor, .dot.reviewer { background: var(--auditor); }
 .dot.solver { background: var(--solver); }
 .dot.lean { background: var(--lean); }
 .dot.decision { background: var(--muted); }
@@ -209,6 +209,10 @@ main { min-width: 0; }
 .prose { font-family: var(--font-prose); font-size: 1.02rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .prose math[display="block"] { margin: 0.5em 0; overflow-x: auto; }
 .prose code { font-size: 0.8em; background: var(--surface-2); padding: 0 4px; border-radius: 3px; }
+.prose .intertext { display: block; }
+.prose ul { margin: 0.25em 0; padding-left: 1.4em; white-space: normal; }
+.prose li { white-space: pre-wrap; }
+.prose pre.tex { margin: 0.5em 0; white-space: pre-wrap; font-size: 0.85rem; }
 
 pre.lean {
   margin: 0;
@@ -338,7 +342,7 @@ svg.flow .elabel { font-size: 11px; fill: var(--muted); paint-order: stroke; str
 svg.flow .elabel.hot { cursor: pointer; fill: var(--accent); text-decoration: underline; }
 svg.flow .arrowhead { fill: var(--muted); }
 svg.flow .c-captain { fill: var(--captain); }
-svg.flow .c-auditor { fill: var(--auditor); }
+svg.flow .c-auditor, svg.flow .c-reviewer { fill: var(--auditor); }
 svg.flow .c-solver { fill: var(--solver); }
 svg.flow .c-lean { fill: var(--lean); }
 svg.flow .c-data { fill: var(--muted); }

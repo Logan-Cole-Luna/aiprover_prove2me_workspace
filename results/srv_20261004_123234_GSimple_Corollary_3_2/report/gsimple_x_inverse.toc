@@ -1,0 +1,24 @@
+\contentsline {section}{\numberline {1}Statement}{1}{section.1}%
+\contentsline {paragraph}{Index set and constants.}{2}{section*.2}%
+\contentsline {paragraph}{Generators.}{2}{section*.3}%
+\contentsline {paragraph}{Relations.}{2}{section*.4}%
+\contentsline {paragraph}{The group.}{3}{section*.81}%
+\contentsline {section}{\numberline {2}Formalization}{3}{section.2}%
+\contentsline {paragraph}{The index set.}{3}{section*.82}%
+\contentsline {paragraph}{The generating symbols.}{4}{section*.83}%
+\contentsline {paragraph}{The constants $c_{\ell j}$.}{5}{section*.84}%
+\contentsline {paragraph}{The elements $\setbox \z@ \hbox {\mathsurround \z@ $\textstyle w$}\mathaccent "0365{w}$.}{5}{section*.85}%
+\contentsline {paragraph}{Commutator and conjugation.}{6}{section*.86}%
+\contentsline {paragraph}{The relators.}{6}{section*.87}%
+\contentsline {paragraph}{The group.}{8}{section*.88}%
+\contentsline {paragraph}{The target statement.}{8}{section*.89}%
+\contentsline {paragraph}{Relation to the source.}{9}{section*.90}%
+\contentsline {section}{\numberline {3}Proof}{9}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Overview}{9}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Proof of the theorem}{10}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Independent review}{10}{section.4}%
+\contentsline {paragraph}{Definitions.}{11}{section*.91}%
+\contentsline {paragraph}{Statement.}{11}{section*.92}%
+\contentsline {paragraph}{Proof.}{11}{section*.93}%
+\contentsline {paragraph}{Concerns.}{12}{section*.94}%
+\contentsline {section}{\numberline {A}Complete Lean file}{12}{appendix.A}%

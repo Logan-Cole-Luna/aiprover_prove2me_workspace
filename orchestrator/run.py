@@ -92,8 +92,10 @@ def main() -> None:
                         help="seconds to wait before an automatic resumption")
     scalar_options = [option for option in fields(Config) if option.name != "agents"]
     for option in scalar_options:
-        parser.add_argument("--" + option.name.replace("_", "-"), type=type(option.default),
-                            default=None)
+        kind = type(option.default)
+        parser.add_argument("--" + option.name.replace("_", "-"), default=None,
+                            type=(lambda text: text.lower() in ("1", "true", "yes")) if kind is bool
+                            else kind)
     args = parser.parse_args()
 
     settings = json.loads(args.config.read_text())

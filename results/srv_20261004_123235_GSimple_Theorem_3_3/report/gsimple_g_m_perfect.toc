@@ -1,0 +1,12 @@
+\contentsline {section}{\numberline {1}Statement}{1}{section.1}%
+\contentsline {section}{\numberline {2}Formalization}{4}{section.2}%
+\contentsline {paragraph}{The target statement.}{8}{section*.78}%
+\contentsline {section}{\numberline {3}Proof}{9}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Overview}{9}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Proof of the theorem}{25}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Independent review}{26}{section.4}%
+\contentsline {paragraph}{Definitions.}{26}{section*.79}%
+\contentsline {paragraph}{Statement.}{27}{section*.80}%
+\contentsline {paragraph}{Proof.}{27}{section*.81}%
+\contentsline {paragraph}{Concerns.}{27}{section*.82}%
+\contentsline {section}{\numberline {A}Complete Lean file}{27}{appendix.A}%

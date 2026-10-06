@@ -24,6 +24,13 @@ completed reply but a handful of the 10,823 recorded (99.9th percentile about
 per request of 8 concurrent sessions, within the 90-min session clock. A
 capped reply without a tool call ends the agent's turn; the harness's answer
 check then returns the Lean errors and the session continues.
+
+vLLM rejects a request (400) whose history holds a tool call with arguments
+that are not JSON or a name outside [a-zA-Z0-9_-]{1,64}. The model emits such
+calls in about 1 of 100 sessions; the harness already answered them with a
+tool error, but resends them, and the 400 restarts the session from scratch.
+The proxy replaces such arguments with `{}` and such names with a sanitized
+form before forwarding.
 """
 
 import argparse
@@ -42,6 +49,7 @@ JOBS = ROOT / "aiprover" / "work" / "jobs"
 SESSION_PATH = re.compile(r"/jobs/([^/\s\"']+)/s(\d+)/")
 HOP_HEADERS = {"host", "content-length", "transfer-encoding", "connection", "keep-alive"}
 MAX_REPLY_TOKENS = 24576
+TOOL_NAME = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 logger = logging.getLogger("reasoning_proxy")
 
@@ -56,6 +64,26 @@ def session_of(request_body: dict) -> tuple[Path, int] | None:
             turn = sum(m.get("role") == "assistant" for m in messages) + 1
             return directory, turn
     return None
+
+
+def repair_tool_calls(request_body: dict) -> int:
+    """Make past tool calls acceptable to vLLM; return how many were changed."""
+    repaired = 0
+    for message in request_body.get("messages") or []:
+        for call in message.get("tool_calls") or []:
+            function = call.get("function") or {}
+            arguments = function.get("arguments")
+            if isinstance(arguments, str):
+                try:
+                    json.loads(arguments)
+                except json.JSONDecodeError:
+                    function["arguments"] = "{}"
+                    repaired += 1
+            name = function.get("name")
+            if isinstance(name, str) and not TOOL_NAME.match(name):
+                function["name"] = re.sub(r"[^a-zA-Z0-9_-]", "_", name)[:64] or "invalid"
+                repaired += 1
+    return repaired
 
 
 def record(directory: Path, turn: int, reasoning: str, content: str, tool_calls: int,
@@ -105,8 +133,13 @@ async def forward(request: web.Request) -> web.StreamResponse:
         try:
             payload = json.loads(body)
             session = session_of(payload)
+            changed = repair_tool_calls(payload)
+            if changed:
+                logger.info(f"repaired {changed} malformed tool call(s) in the history")
             if not (payload.get("max_tokens") or payload.get("max_completion_tokens")):
                 payload["max_tokens"] = request.app["max_reply_tokens"]
+                changed = True
+            if changed:
                 body = json.dumps(payload).encode()
         except (json.JSONDecodeError, AttributeError):
             session = None

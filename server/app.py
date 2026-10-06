@@ -19,17 +19,22 @@ import logging
 import os
 import re
 import secrets
+import tempfile
 import time
+import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
+from starlette.background import BackgroundTask
 from pydantic import BaseModel
 
-from . import vista
+from orchestrator import library as libraries
+
+from . import models, vista
 from .jobs import (DATA_DIR, OPEN_STATES, PROBLEM_DIR, ROOT, JobStore, Worker,
-                   endpoint_status)
+                   endpoint_status, job_selection)
 from .vista import control_master_running
 
 TOKENS = ROOT / "server" / "tokens.json"
@@ -40,6 +45,11 @@ MAX_OPEN_JOBS_PER_USER = 3
 MAX_QUEUED_JOBS = 20
 MAX_STATEMENT_CHARS = 20_000
 MAX_PROOF_CHARS = 50_000
+MAX_LIBRARY_CHARS = 2_000_000
+# Libraries a run may build on (orchestrator/library.py); uploads are kept
+# per run under uploads/.
+LIBRARY_DIR = ROOT / "libraries"
+LIBRARY_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.lean$")
 RESULT_PAGES = ("trace.html", "trace_replay.html", "summary.json")
 TERMINAL_STATES = ("finished", "cancelled", "rejected")
 
@@ -192,10 +202,30 @@ def problems(user: str = Depends(current_user)) -> list[dict]:
             for uuid, row in read_dataset().items()]
 
 
+class Selection(BaseModel):
+    provider: str
+    model: str
+    effort: str = ""
+
+
 class Submission(BaseModel):
     uuid: str = ""
     statement: str = ""
     proof: str = ""
+    orchestrator: Selection | None = None
+    auditor: Selection | None = None
+    reviewer: Selection | None = None
+    writer: Selection | None = None
+    subagent: Selection | None = None
+    library: str = ""          # a file in libraries/
+    library_text: str = ""     # or an uploaded library
+    extend_library: bool = False
+    after: str = ""            # a run that must end first
+
+
+@app.get("/api/models")
+def model_catalog(user: str = Depends(current_user)) -> dict:
+    return models.catalog()
 
 
 def new_run_id(suffix: str) -> str:
@@ -214,6 +244,12 @@ def submit(body: Submission, user: str = Depends(current_user)) -> dict:
         raise HTTPException(429, f"at most {MAX_OPEN_JOBS_PER_USER} open runs per user")
     if len(store.in_states("awaiting_approval", "queued")) >= MAX_QUEUED_JOBS:
         raise HTTPException(503, "queue is full")
+
+    try:
+        selection = models.validate({role: getattr(body, role).model_dump()
+                                     for role in models.ROLES if getattr(body, role)})
+    except ValueError as error:
+        raise HTTPException(400, str(error))
 
     if body.uuid:
         row = read_dataset().get(body.uuid)
@@ -240,10 +276,47 @@ def submit(body: Submission, user: str = Depends(current_user)) -> dict:
         dataset.write_text(json.dumps(row) + "\n")
         title = statement.splitlines()[0][:120]
 
+    options = library_options(body, run_id)
     store.add({"run_id": run_id, "owner": user, "uuid": uuid, "title": title,
                "dataset": str(dataset), "state": "awaiting_approval",
-               "submitted": time.time()})
+               "submitted": time.time(), "agents": json.dumps(selection),
+               "options": json.dumps(options) if options else None})
     return {"run_id": run_id, "state": "awaiting_approval"}
+
+
+def library_options(body: Submission, run_id: str) -> dict:
+    """Run options for a submission's library and dependency."""
+    options = {}
+    if body.library and body.library_text:
+        raise HTTPException(400, "give a library name or a library file, not both")
+    if body.library:
+        if not LIBRARY_NAME.match(body.library) or not (LIBRARY_DIR / body.library).exists():
+            raise HTTPException(400, f"unknown library {body.library}")
+        options["library"] = f"libraries/{body.library}"
+    elif body.library_text.strip():
+        if len(body.library_text) > MAX_LIBRARY_CHARS:
+            raise HTTPException(413, "library file too long")
+        path = LIBRARY_DIR / "uploads" / f"{run_id}.lean"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body.library_text)
+        options["library"] = str(path.relative_to(ROOT))
+    if body.extend_library:
+        if "library" not in options:
+            raise HTTPException(400, "extend_library requires a library")
+        options["extend_library"] = True
+    if body.after:
+        if store.get(body.after) is None:
+            raise HTTPException(400, f"unknown run {body.after}")
+        options["after"] = body.after
+    return options
+
+
+@app.get("/api/libraries")
+def list_libraries(user: str = Depends(current_user)) -> list[dict]:
+    """Libraries in libraries/: name, size, and number of declarations."""
+    return [{"name": path.name, "chars": len(text := path.read_text()),
+             "declarations": len(libraries.declared_names(text))}
+            for path in sorted(LIBRARY_DIR.glob("*.lean"))]
 
 
 def describe(job: dict) -> dict:
@@ -251,10 +324,13 @@ def describe(job: dict) -> dict:
     files = [name for name in RESULT_PAGES if (result_dir / name).exists()]
     if any(result_dir.glob("*_standalone.lean")):
         files.append("standalone.lean")
+    files += [f"report{suffix}" for suffix in (".pdf", ".tex")
+              if any((result_dir / "report").glob(f"*{suffix}"))]
     return {key: job[key] for key in ("run_id", "owner", "uuid", "title", "state", "status",
                                       "submitted", "started", "ended", "approved_by",
                                       "resumptions")} | {
-        "position": store.queue_position(job["run_id"]), "files": files}
+        "position": store.queue_position(job["run_id"]), "files": files,
+        "agents": job_selection(job)}
 
 
 @app.get("/api/runs")
@@ -296,12 +372,130 @@ def get_file(name: str, job: dict = Depends(owned_job)) -> FileResponse:
     if name == "standalone.lean":
         matches = sorted(result_dir.glob("*_standalone.lean"))
         path = matches[0] if matches else None
+    elif name in ("report.pdf", "report.tex"):
+        matches = sorted((result_dir / "report").glob(f"*{Path(name).suffix}"))
+        path = matches[0] if matches else None
     else:
         path = result_dir / name if name in RESULT_PAGES else None
     if path is None or not path.exists():
         raise HTTPException(404, "no such file")
-    media_type = "text/plain; charset=utf-8" if path.suffix == ".lean" else None
+    media_type = "text/plain; charset=utf-8" if path.suffix in (".lean", ".tex") else None
     return FileResponse(path, media_type=media_type)
+
+
+# Export layout: the files a reader opens first at the root of the folder,
+# everything else in subfolders by purpose.
+EXPORT_FOLDERS = {
+    "lean_modules": "Lean modules of the solution (Definitions, Theorems, Solutions, Check) and their build log",
+    "report_build": "LaTeX by-products of the report",
+    "run_data": "Problem, summary and full trace of the run (JSON)",
+    "logs": "Model calls and the orchestrator log",
+}
+STATUS_TEXT = {"proved": "proved; the Lean proof compiles and is verified",
+               "lemmas_unproved": "not proved; some lemmas have no Lean proof",
+               "failed": "not proved; the run stopped before a proof"}
+# Pipeline role names as the page names them.
+ROLE_NAMES = {pipeline: role for role, pipeline in models.ROLES.items()}
+
+
+def model_label(spec: dict, version: str) -> str:
+    """Readable model of an agent specification from a trace."""
+    if spec.get("backend") in ("aiprover", "openai_compatible") and spec.get("model") == "aiprover":
+        return models.AIPROVER_VERSIONS.get(version, "AIProver")
+    info = models.CLAUDE_MODELS.get(spec.get("model"))
+    label = info["label"] if info else spec.get("model", "?")
+    return f"{label} ({spec['effort']} reasoning)" if spec.get("effort") else label
+
+
+def export_path(relative: Path) -> str | None:
+    """Where a file of results/<run_id>/ goes in the export; None to leave it out."""
+    name, suffix = relative.name, relative.suffix
+    if relative.parts[0] == "report":
+        return name if suffix in (".tex", ".pdf") else f"report_build/{name}"
+    if name.endswith("_standalone.lean") or suffix == ".html":
+        return name
+    if suffix == ".lean" or name == "module_build.log":
+        return f"lean_modules/{name}"
+    return f"run_data/{relative}"
+
+
+def export_readme(record: dict, trace_agents: dict, files: list[str]) -> str:
+    """A short guide to the exported folder; the models are those the trace
+    records."""
+    root_files = [name for name in files if "/" not in name]
+    folders = [folder for folder in EXPORT_FOLDERS if any(name.startswith(folder + "/") for name in files)]
+    guide = {
+        "_standalone.lean": "complete Lean 4 formalization and proof in one file (Mathlib)",
+        ".pdf": "report: the formalized statement and proof in mathematical language, with the Lean code",
+        ".tex": "LaTeX source of the report",
+        "trace.html": "walkthrough of the run, step by step (open in a browser)",
+        "trace_replay.html": "animated replay of the run (open in a browser)",
+        "trace_graph.html": "graph of the run (open in a browser)",
+    }
+    lines = [f"# {record['title']}", "",
+             f"Problem `{record['uuid']}`, run `{record['run_id']}`.",
+             f"Result: {STATUS_TEXT.get(record['status'], record['status'] or record['state'])}.", "",
+             "## Contents", ""]
+    for name in root_files:
+        description = next((text for key, text in guide.items() if name.endswith(key)), "")
+        lines.append(f"- `{name}`" + (f": {description}" if description else ""))
+    lines += [f"- `{folder}/`: {EXPORT_FOLDERS[folder]}" for folder in folders]
+    version = next((choice["model"] for choice in record["agents"].values()
+                    if choice["provider"] == "aiprover"), "trained")
+    roles = sorted(trace_agents, key=lambda name: list(ROLE_NAMES).index(name)
+                   if name in ROLE_NAMES else len(ROLE_NAMES))
+    if roles:
+        lines += ["", "## Models", ""]
+        lines += [f"- {ROLE_NAMES.get(role, role)}: {model_label(trace_agents[role], version)}"
+                  for role in roles]
+    if any(name.endswith("_standalone.lean") for name in root_files):
+        lines += ["", "The standalone file compiles with Lean v4.23.0 and Mathlib v4.23.0 in a Lake project:",
+                  "`lake env lean <file>`."]
+    return "\n".join(lines) + "\n"
+
+
+@app.get("/api/runs/{run_id}/export")
+def export_run(job: dict = Depends(owned_job)) -> FileResponse:
+    """The run as a zip of one folder: the standalone Lean file, the report
+    (.tex, .pdf), the trace pages and a README at its root; Lean modules, LaTeX
+    by-products, run data and logs in the subfolders of EXPORT_FOLDERS."""
+    run_id = job["run_id"]
+    rows = (json.loads(line) for line in open(job["dataset"]) if line.strip()) \
+        if Path(job["dataset"]).exists() else ()
+    problem = next((row for row in rows if row["uuid"] == job["uuid"]), None)
+    record = describe(job) | {"problem": {key: value for key, value in (problem or {}).items()
+                                          if not key.startswith("_")}}
+    entries = {"run_data/problem.json": json.dumps(record, indent=1, ensure_ascii=False)}
+    sources = {}
+    result_dir, log_dir = ROOT / "results" / run_id, ROOT / "logs" / run_id
+    for path in sorted(result_dir.rglob("*")) if result_dir.is_dir() else []:
+        target = export_path(path.relative_to(result_dir)) if path.is_file() else None
+        if target:
+            sources[target] = path
+    for path in sorted(log_dir.rglob("*")) if log_dir.is_dir() else []:
+        if path.is_file():
+            sources[f"logs/{path.relative_to(log_dir)}"] = path
+    # Root files first (Lean, PDF, TeX, pages), then the subfolders in order.
+    order = lambda name: ("/" in name, list(EXPORT_FOLDERS).index(name.split("/")[0]) if "/" in name else 0,
+                          not name.endswith(".lean"), not name.endswith(".pdf"),
+                          not name.endswith(".tex"), name)
+    sources = dict(sorted(sources.items(), key=lambda item: order(item[0])))
+    trace_path = result_dir / "trace.json"
+    try:
+        trace_agents = json.loads(trace_path.read_text()).get("agents") or {}
+    except (OSError, json.JSONDecodeError):
+        trace_agents = {}
+    entries = {"README.md": export_readme(record, trace_agents, list(entries) + list(sources)),
+               **entries}
+    archive = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
+        for target, text in entries.items():
+            bundle.writestr(f"{run_id}/{target}", text)
+        for target, path in sources.items():
+            bundle.write(path, f"{run_id}/{target}")
+    archive.close()
+    return FileResponse(archive.name, media_type="application/zip", filename=f"{run_id}.zip",
+                        background=BackgroundTask(os.unlink, archive.name))
 
 
 @app.get("/api/runs/{run_id}/progress")

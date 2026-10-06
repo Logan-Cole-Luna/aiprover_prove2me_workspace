@@ -6,7 +6,7 @@
 <title>bounding_ite_base orchestration replay</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap">
 <style>
 :root {
   --bg: #f4f5f8;
@@ -219,6 +219,10 @@ main { min-width: 0; }
 .prose { font-family: var(--font-prose); font-size: 1.02rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .prose math[display="block"] { margin: 0.5em 0; overflow-x: auto; }
 .prose code { font-size: 0.8em; background: var(--surface-2); padding: 0 4px; border-radius: 3px; }
+.prose .intertext { display: block; }
+.prose ul { margin: 0.25em 0; padding-left: 1.4em; white-space: normal; }
+.prose li { white-space: pre-wrap; }
+.prose pre.tex { margin: 0.5em 0; white-space: pre-wrap; font-size: 0.85rem; }
 
 pre.lean {
   margin: 0;
@@ -500,6 +504,27 @@ aside.drawer[hidden] { display: none !important; }
 }
 a.btn { text-decoration: none; color: var(--ink); font-size: 0.85rem; }
 
+/* AIProver sessions in the step drawer ------------------------------------- */
+pre.plain.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+pre.diag {
+  margin: 0; padding: 10px 12px; border-radius: 6px; background: var(--surface-2);
+  font-size: 0.78rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: 420px; overflow: auto;
+}
+pre.diag .error { color: var(--fail); font-weight: 600; }
+pre.diag .warning { color: var(--warn); }
+.checkline { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; margin-top: 6px; }
+.checkline .k { font-size: 0.78rem; color: var(--muted); margin-right: 2px; }
+ul.problems { margin: 0; padding-left: 1.2em; font-size: 0.88rem; }
+h4.lanehead { margin: 14px 0 4px; font-family: var(--font-mono); font-size: 0.9rem; }
+.session { display: flex; flex-direction: column; gap: 8px; }
+.turn { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-left: 3px solid var(--line); }
+.turnhead { display: flex; gap: 10px; align-items: baseline; font-size: 0.8rem; color: var(--muted); }
+.toolcall { display: flex; flex-direction: column; gap: 4px; }
+.toolcall pre { max-height: 220px; overflow: auto; }
+details.reasoning > summary b { color: var(--accent); }
+details.fold.toolresult > summary { padding-block: 6px; }
+
 
 html, body { height: 100%; }
 body { display: flex; flex-direction: column; overflow: hidden; }
@@ -669,6 +694,75 @@ svg.exporting *, svg.exporting { transition: none !important; animation: none !i
   .redge, .rnode { transition: none; }
 }
 </style>
+<style>
+/* Editorial theme shared by trace.html and trace_replay.html: warm paper, display serif,
+   vermilion accent, soft cards. Applied after the page styles; the triple :root outranks
+   the dark-mode palette in trace_common.css, so the pages stay light. */
+:root:root:root {
+  color-scheme: light;
+  --bg: #f5efe4; --surface: #fffaf1; --surface-2: #ece4d4; --ink: #1d1a16;
+  --muted: #74695a; --line: #ddd2bf; --accent: #c8401c; --accent-soft: #f7e0d4;
+  --captain: #c8401c; --auditor: #6a4c93; --solver: #2f7d6d; --lean: #b5831f;
+  --ok: #2f7d4d; --ok-soft: #e1efe2; --fail: #b3261e; --fail-soft: #f7dcd7;
+  --warn: #a8660a; --warn-soft: #f6e6c8; --code-bg: #f9f4ea; --err-line: #f7dcd7;
+  --kw: #c8401c; --cm: #8b7f6e; --str: #2f7d6d;
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-prose: "Newsreader", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Source Serif 4", Georgia, serif;
+}
+body { font-size: 15px; }
+.topbar { background: var(--bg); border-bottom: 1px solid var(--ink); padding: 14px 24px; }
+.topbar .thm { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; letter-spacing: -0.01em; }
+.topbar .run { font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.72rem; }
+.btn, a.btn { border-radius: 999px; background: var(--surface); border-color: var(--line); font-size: 0.85rem; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; filter: none; }
+.eyebrow { color: var(--accent); font-weight: 700; letter-spacing: 0.14em; }
+
+.stage { background-color: var(--bg); background-image: radial-gradient(rgba(29,26,22,0.12) 1px, transparent 1px); background-size: 18px 18px; }
+.stage-tools .btn { box-shadow: 0 1px 2px rgba(60,40,10,0.08); }
+
+.rnode rect.body { fill: var(--surface); stroke-width: 1.2; filter: drop-shadow(0 2px 3px rgba(60, 40, 10, 0.12)); }
+.rnode text { font-family: var(--font-ui); }
+.rnode .t1 { font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+.rnode .t1.mono { font-family: var(--font-mono); font-size: 12px; }
+.rnode .t2 { font-family: var(--font-prose); font-size: 12px; }
+.rnode.root rect.body { fill: var(--accent-soft); }
+.redge { opacity: 0.7; stroke-width: 1.8; stroke-linecap: round; }
+.rlabel { font-family: var(--font-prose); font-size: 12px; }
+.band { fill: var(--surface-2); opacity: 0.45; }
+.band-label { font-family: var(--font-display); font-weight: 600; letter-spacing: 0; font-size: 16px; fill: var(--ink); }
+
+.side { background: var(--surface); border-left: 1px solid var(--line); }
+.narration { padding: 22px 24px; }
+.narration h3 { font-family: var(--font-display); font-size: 1.45rem; font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; }
+.narration p { font-family: var(--font-prose); font-size: 1.04rem; color: var(--ink); line-height: 1.5; }
+.log button { padding: 6px 24px; font-size: 0.84rem; }
+.log button.now { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+
+.transport { background: var(--bg); border-top: 1px solid var(--ink); }
+.transport select { border-radius: 999px; background: var(--surface); }
+.phases span { font-weight: 600; letter-spacing: 0.04em; }
+.phases span.on { background: var(--accent); color: #fff; }
+
+aside.drawer { box-shadow: -20px 0 50px rgba(60, 40, 10, 0.18); }
+.drawer-head { background: var(--surface); }
+.drawer-head h3 { font-family: var(--font-display); font-size: 1.2rem; }
+.tabs button[aria-selected="true"] { border-bottom-color: var(--accent); }
+.panel, details.fold, .steps, .checks, .table-wrap, .gantt-wrap { border-radius: 12px; box-shadow: 0 1px 3px rgba(60,40,10,0.06); }
+.prose { font-size: 1.1rem; line-height: 1.65; }
+.scrim { background: rgba(40, 28, 10, 0.3); }
+
+h1, h2 { font-family: var(--font-display); letter-spacing: -0.01em; }
+nav.chapters button[aria-current="step"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+nav.chapters button .n { color: var(--accent); }
+.stepper { background: var(--bg); border-top: 1px solid var(--ink); }
+.chip { border-radius: 999px; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.steprow:hover { background: var(--accent-soft); }
+
+</style>
 </head>
 <body>
 <header class="topbar">
@@ -678,7 +772,6 @@ svg.exporting *, svg.exporting { transition: none !important; animation: none !i
   <span class="spacer"></span>
   <span class="run" id="models"></span>
   <a class="btn" href="trace.html">Walkthrough</a>
-  <a class="btn" href="trace_graph.html">Graph view</a>
 </header>
 
 <div class="workspace">
@@ -744,7 +837,7 @@ if (!TRACE) {
   document.body.innerHTML = `<main style="padding:48px 24px;max-width:62ch;font:16px/1.6 system-ui,sans-serif">
     <h1 style="font-size:1.4rem">No run data in this file</h1>
     <p>This is a page template. The rendered pages for each run are in
-    <code>results/&lt;run_id&gt;/</code>: <code>trace.html</code>, <code>trace_graph.html</code>
+    <code>results/&lt;run_id&gt;/</code>: <code>trace.html</code>
     and <code>trace_replay.html</code>. Generate them with</p>
     <pre style="background:#eef0f4;padding:10px 12px;border-radius:6px">python3 -m orchestrator.trace_view results/&lt;run_id&gt;/trace.json</pre>
   </main>`;
@@ -768,13 +861,142 @@ const plural = (n, word, many = word + "s") => `${n} ${n === 1 ? word : many}`;
 
 // Derived views of the trace --------------------------------------------------
 
-const steps = TRACE.steps;
+// An AIProver job cut short by a lost model server or an interrupted run ends
+// with neither a proved lemma nor a recorded failure, or with every session
+// cancelled; the lemma is attempted again after the run resumes. Such a job and its Lean checks are left out, so the later job takes
+// its place, and the remaining steps are numbered consecutively.
+function interruptedSteps(all) {
+  const hidden = new Set();
+  const jobs = all.filter(s => s.kind === "model_call" && s.backend === "aiprover");
+  for (const job of jobs) {
+    const next = jobs.find(j => j.index > job.index && j.lemma === job.lemma);
+    const window = all.filter(s => s.index > job.index && (!next || s.index < next.index)
+      && s.lemma === job.lemma);
+    // A job whose sessions were all cancelled or never reached the model was
+    // stopped by the interruption too, even if its failure was recorded.
+    const unrun = (job.samples || []).length > 0
+      && job.samples.every(x => x.status === "cancelled" || x.status === "infra");
+    const ended = window.some(s => s.event === "lemma_proved"
+      || (s.event === "solver_budget_exhausted" && !unrun));
+    if (ended) continue;
+    // Only after an interruption: a job still running in a live trace is kept.
+    if (!all.some(s => s.index > job.index && s.event === "resumed")) continue;
+    hidden.add(job.index);
+    window.filter(s => s.kind === "lean_check").forEach(s => hidden.add(s.index));
+  }
+  return hidden;
+}
+const hiddenSteps = interruptedSteps(TRACE.steps);
+const steps = TRACE.steps.filter(s => !hiddenSteps.has(s.index)).map((s, i) => ({ ...s, index: i }));
 const calls = steps.filter(s => s.kind === "model_call");
 const checks = steps.filter(s => s.kind === "lean_check");
 const decisions = steps.filter(s => s.kind === "decision");
 const eventsOf = name => decisions.filter(d => d.event === name);
-const sameAttempt = (a, b) =>
-  a.lemma === b.lemma && a.worker === b.worker && a.round === b.round;
+
+// An AIProver call is one job of several samples, not one chat reply. Its Lean
+// checks and its lemma_proved decision follow it in the trace and carry the
+// sample index as `worker`, so they are attributed to the job by position: the
+// job of a step is the last job on the same lemma recorded before it.
+const isJob = step => step?.kind === "model_call" && step.backend === "aiprover";
+const jobsByLemma = new Map();
+for (const call of calls.filter(isJob)) {
+  if (!jobsByLemma.has(call.lemma)) jobsByLemma.set(call.lemma, []);
+  jobsByLemma.get(call.lemma).push(call);
+}
+const jobOfStep = new Map();
+for (const step of steps) {
+  if (step.lemma == null || step.kind === "model_call") continue;
+  const job = (jobsByLemma.get(step.lemma) || []).filter(j => j.index < step.index).at(-1);
+  if (job) jobOfStep.set(step.index, job);
+}
+const jobOf = step => (isJob(step) ? step : jobOfStep.get(step.index)) || null;
+const jobNumber = job => (jobsByLemma.get(job.lemma) || []).indexOf(job) + 1;
+
+// A chat solver's step belongs to the latest call on the same lemma, worker and
+// round recorded at or before it (a later sketch repeats these keys).
+const chatCallOf = step => step.kind === "model_call" ? step
+  : calls.filter(c => c.lemma === step.lemma && c.worker === step.worker && c.round === step.round
+    && c.index <= step.index).at(-1) || null;
+const sameAttempt = (a, b) => {
+  const jobA = jobOf(a), jobB = jobOf(b);
+  if (jobA || jobB) return jobA === jobB;
+  if (a.lemma !== b.lemma || a.worker !== b.worker || a.round !== b.round) return false;
+  return chatCallOf(a) === chatCallOf(b);
+};
+
+// Independent sessions (samples) an AIProver job ran in parallel on its lemma.
+const jobSamples = job => (job.samples || []).length || TRACE.config?.workers || 1;
+// Largest number of AIProver jobs, and of their sessions, in flight at once.
+// Sessions beyond the harness's max_parallel wait inside AIProver.
+function peakInFlight() {
+  const events = [];
+  for (const jobs of jobsByLemma.values()) for (const job of jobs) {
+    const start = job.elapsed_seconds - (job.seconds || 0);
+    events.push([start, 1, jobSamples(job)], [job.elapsed_seconds, -1, -jobSamples(job)]);
+  }
+  events.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let jobs = 0, sessions = 0, peakJobs = 0, peakSessions = 0;
+  for (const [, dj, ds] of events) {
+    jobs += dj; sessions += ds;
+    peakJobs = Math.max(peakJobs, jobs); peakSessions = Math.max(peakSessions, sessions);
+  }
+  return { jobs: peakJobs, sessions: peakSessions };
+}
+
+// How each AIProver sample ended, from the harness's status of its Lean file.
+// The status is that of the sample's final Lean file; the ending, when known,
+// is why its session stopped (timeout, turn limit, server lost, ...).
+const SAMPLE_TEXT = { verified: "verified", sorry: "sorry", error: "Lean error",
+  empty: "no answer", infra: "server lost", unknown: "no status" };
+function sampleText(sample) {
+  const status = SAMPLE_TEXT[sample.status] || sample.status;
+  const ending = sample.ending && sample.ending !== "finished" ? sample.ending : "";
+  return ending && ending !== status ? `${status} · ${ending}` : status;
+}
+function jobSummary(job) {
+  const samples = job.samples || [];
+  if (!samples.length) return job.error ? "job failed" : "no answer";
+  return samples.map(sampleText).join(", ");
+}
+// Sample `k` of an AIProver job: how it ended, its Lean check if its proof was
+// extracted and checked, and when it finished (job start + its elapsed time).
+function sampleOutcome(job, k) {
+  const samples = job.samples || [];
+  const sample = samples.find(s => s.sample === k) || samples[k] || null;
+  const check = checks.find(c => jobOf(c) === job && c.worker === k) || null;
+  const win = lemmaWins.get(job.lemma);
+  const kept = !!win && jobOf(win) === job && win.worker === k;
+  const late = !!win && !kept && job.index > win.index;
+  const state = kept ? "win" : late ? "late" : check ? (check.ok ? "ok" : "fail") : "pending";
+  const text = sample ? sampleText(sample) : job.error ? "job failed" : "no answer";
+  const start = job.elapsed_seconds - (job.seconds || 0);
+  const end = Math.min(job.elapsed_seconds, start + (sample?.elapsed_sec ?? job.seconds ?? 0));
+  return { sample, check, state, text, start, end, turns: sample?.turns ?? null };
+}
+const sampleLanes = () => [...Array(Math.max(1, ...calls.filter(isJob).map(jobSamples))).keys()];
+// Sessions of one job; jobs may run different numbers of sessions.
+const jobLanes = job => [...Array(jobSamples(job)).keys()];
+// Captain calls on a lemma the solvers kept failing on, and their decisions.
+const handbackLemma = call => (/^handback\/(.+)$/.exec(call.label || "") || [])[1] || null;
+const isHandback = step => step?.kind === "model_call" && handbackLemma(step) != null;
+const captainCheck = step => step.kind === "lean_check" && (step.worker === "captain" || /_restated$/.test(step.label || ""));
+
+// Who proved a lemma, for the lemma_proved decision `win`.
+function winnerText(win) {
+  if (win.worker === "captain") return "the captain, after a hand-back";
+  const job = jobOf(win);
+  return job ? `AIProver job ${jobNumber(job)}, sample ${win.worker}`
+    : `solver ${win.worker}, round ${win.round}`;
+}
+// Why a lemma has a further attempt after `previous`: Lean errors for a chat
+// solver; for AIProver a new job, after a replan (a new sketch) or else a
+// retry of the same statement (a resumption does not change the attempt).
+function transitionText(previous, next) {
+  if (!isJob(next)) return solverOutcome(previous).state === "fail" ? "errors" : "";
+  const between = decisions.filter(d => d.index > previous.index && d.index < next.index);
+  if (between.some(d => d.event === "replan")) return "replan";
+  return "retry";
+}
 
 // Each model call that produced Lean code is paired with the check of that code.
 const checkOfCall = new Map();
@@ -865,7 +1087,14 @@ const TEX_MACROS = {
   "\\TR": "\\mathrm{TR}", "\\ITR": "\\mathrm{ITR}", "\\M": "\\mathcal{M}",
   "\\FP": "\\mathsf{FP}", "\\calF": "\\mathcal{F}",
 };
-const MATH_SPAN = /\$\$([\s\S]+?)\$\$|\\begin\{equation\*?\}([\s\S]+?)\\end\{equation\*?\}|\\\[([\s\S]+?)\\\]|\$([^$\n]+?)\$/g;
+// Display environments come first, so that inline math inside them (e.g. in
+// \intertext) is rendered as part of the environment.
+const MATH_SPAN = new RegExp([
+  String.raw`\\begin\{(equation|align|gather|alignat|multline|eqnarray|prooftree)(\*?)\}([\s\S]+?)\\end\{\1\2\}`,
+  String.raw`\$\$([\s\S]+?)\$\$`, String.raw`\\\[([\s\S]+?)\\\]`, String.raw`\$((?:[^$\n]|\n(?![ \t]*\n))+?)\$`,
+].join("|"));
+// KaTeX lacks these environments; each is rendered as the closest one it has.
+const KATEX_ENVIRONMENT = { multline: "gather", eqnarray: "align" };
 
 function texHTML(tex, display) {
   if (!window.katex) return `<code>${escapeHTML(display ? tex : "$" + tex + "$")}</code>`;
@@ -879,21 +1108,97 @@ function texHTML(tex, display) {
   }
 }
 
+// Index just past the group that opens at `text[open]` ("{"), or -1.
+function closingBrace(text, open) {
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    if (text[i] === "\\") { i++; continue; }
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}" && --depth === 0) return i + 1;
+  }
+  return -1;
+}
+
+// A display environment; \intertext{...}, which KaTeX lacks, splits it into
+// separate environments with the text between them.
+function environmentHTML(name, star, body) {
+  if (name === "prooftree") return `<pre class="tex"><code>${escapeHTML(body.trim())}</code></pre>`;
+  const environment = (KATEX_ENVIRONMENT[name] || name) + star;
+  const render = rows => rows.trim()
+    ? texHTML(`\\begin{${environment}}${rows.replace(/\\label\{[^}]*\}/g, "")}\\end{${environment}}`, true)
+    : "";
+  let out = "", start = 0, at;
+  while ((at = body.indexOf("\\intertext{", start)) !== -1) {
+    const end = closingBrace(body, at + "\\intertext".length);
+    if (end === -1) break;
+    out += render(body.slice(start, at).replace(/\\\\\s*$/, ""))
+      + `<span class="intertext">${mathHTML(body.slice(at + "\\intertext{".length, end - 1))}</span>`;
+    start = end;
+  }
+  return out + render(body.slice(start));
+}
+
 function inlineCode(text) {
   return escapeHTML(text).replace(/`([^`\n]+)`/g, "<code>$1</code>");
 }
 
-// Prose containing $...$ / $$...$$ / \begin{equation} math and `code`.
+// Text-mode LaTeX of an informal statement (already HTML-escaped), as HTML:
+// emphasis, sectioning, lists, theorem environments and spacing commands.
+const THEOREM_ENVIRONMENTS = "theorem|lemma|proposition|corollary|definition|remark|example|claim|conjecture";
+function textModeHTML(html) {
+  const replaceGroups = (text, command, wrap) => {
+    let out = "", start = 0, at;
+    while ((at = text.indexOf(command + "{", start)) !== -1) {
+      const end = closingBrace(text, at + command.length);
+      if (end === -1) break;
+      out += text.slice(start, at) + wrap(textModeHTML(text.slice(at + command.length + 1, end - 1)));
+      start = end;
+    }
+    return out + text.slice(start);
+  };
+  for (const [command, wrap] of [
+    ["\\textbf", s => `<strong>${s}</strong>`], ["\\emph", s => `<em>${s}</em>`],
+    ["\\textit", s => `<em>${s}</em>`], ["\\texttt", s => `<code>${s}</code>`],
+    ["\\paragraph", s => `<strong>${s}</strong>`], ["\\subparagraph", s => `<strong>${s}</strong>`],
+    ["\\marginnote", s => ` (${s})`],
+  ]) html = replaceGroups(html, command, wrap);
+  return html
+    .replace(/\\label\{[^{}]*\}\s*/g, "")
+    .replace(/\\(eq)?ref\{([^{}]*)\}/g, (_, eq, label) => eq ? `(${label})` : label)
+    .replace(/\\textcolor\{[^{}]*\}\{([^{}]*)\}/g, "$1")
+    .replace(/\{\\(it|em|sl)\s+([^{}]*)\}/g, "<em>$2</em>")
+    .replace(/\{\\bf\s+([^{}]*)\}/g, "<strong>$1</strong>")
+    .replace(/\\(begingroup|endgroup|allowdisplaybreaks|noindent|medskip|smallskip|bigskip|newline)\b\s*/g, "")
+    .replace(/\s*\\begin\{(itemize|compactitem|enumerate|compactenum)\}\s*/g, "<ul>")
+    .replace(/\s*\\end\{(itemize|compactitem|enumerate|compactenum)\}\s*/g, "</ul>")
+    .replace(/\s*\\item\s*/g, "<li>")
+    .replace(new RegExp(String.raw`\\begin\{(${THEOREM_ENVIRONMENTS})\}(?:\[([^\]]*)\])?\s*`, "g"),
+             (_, name, note) => `<strong>${name[0].toUpperCase() + name.slice(1)}${note ? ` (${note})` : ""}.</strong> `)
+    .replace(new RegExp(String.raw`\s*\\end\{(${THEOREM_ENVIRONMENTS})\}`, "g"), "")
+    .replace(/\\begin\{proof\}\s*/g, "<em>Proof.</em> ")
+    .replace(/\s*\\end\{proof\}/g, " ∎")
+    .replace(/\\\\(\[[^\]]*\])?[ \t]*(\n?)/g, (_, skip, newline) => newline || "\n")
+    .replace(/(\S)~(?=\S)/g, "$1&nbsp;");
+}
+
+// Prose containing LaTeX math (inline, display and align-like environments),
+// text-mode LaTeX and `code`. Math and code are set aside while the text-mode
+// commands, which may span them, are converted.
 function mathHTML(text) {
-  let out = "", last = 0, match;
-  MATH_SPAN.lastIndex = 0;
-  while ((match = MATH_SPAN.exec(text))) {
-    out += inlineCode(text.slice(last, match.index));
-    const display = match[4] === undefined;
-    out += texHTML(match[1] ?? match[2] ?? match[3] ?? match[4], display);
-    last = MATH_SPAN.lastIndex;
+  const pieces = [];
+  const keep = html => `\u0000${pieces.push(html) - 1}\u0000`;
+  // A fresh pattern per call: \intertext renders its text with a nested call.
+  const span = new RegExp(MATH_SPAN.source, "g");
+  let prose = "", last = 0, match;
+  while ((match = span.exec(text))) {
+    prose += text.slice(last, match.index);
+    prose += keep(match[1] ? environmentHTML(match[1], match[2], match[3])
+                           : texHTML(match[4] ?? match[5] ?? match[6], match[6] === undefined));
+    last = span.lastIndex;
   }
-  return out + inlineCode(text.slice(last));
+  prose += text.slice(last);
+  const html = escapeHTML(prose.replace(/`([^`\n]+)`/g, (_, code) => keep(`<code>${escapeHTML(code)}</code>`)));
+  return textModeHTML(html).replace(/\u0000(\d+)\u0000/g, (_, index) => pieces[index]);
 }
 
 // Minimal Markdown for the playbook-derived system prompts.
@@ -962,11 +1267,13 @@ const EVENT_TEXT = {
   solver_budget_exhausted: "Solver chain exhausted its budget",
   replan: "Sketch revision requested",
   lemma_reused: "Proved lemma reused",
+  lemma_handback: "Lemma handed back to the captain",
   final_verification: "Final verification",
 };
 
 function stepTitle(step) {
   if (step.kind === "model_call") {
+    if (isJob(step)) return `AIProver job ${jobNumber(step)} · ${step.lemma}`;
     if (step.lemma != null) return `solver ${step.worker} · ${step.lemma} · round ${step.round}`;
     return `${step.role} · ${step.label}`;
   }
@@ -979,8 +1286,9 @@ function stepResult(step) {
     if (step.error) return `<span class="pill fail">error</span>`;
     if (step.lemma != null) {
       const { state } = solverOutcome(step);
-      const label = { win: "proof kept", ok: "compiles", fail: "Lean errors",
-        late: "after lemma proved", rejected: "rejected", pending: "no check" }[state];
+      const label = state === "pending" && isJob(step) ? jobSummary(step)
+        : { win: "proof kept", ok: "compiles", fail: "Lean errors",
+            late: "after lemma proved", rejected: "rejected", pending: "no proof returned" }[state];
       const tone = { win: "ok", ok: "ok", fail: "fail", late: "neutral", rejected: "warn", pending: "neutral" }[state];
       return `<span class="pill ${tone}">${label}</span>`;
     }
@@ -1039,10 +1347,172 @@ let openStep = null;
 let drawerOpen = false;
 let drawerTab = "response";
 
-function stepDetail(step) {
+// Tabs of the step drawer: `panels` is a list of [id, name, html]. The tab
+// last chosen stays selected when the next drawer has it.
+function tabsHTML(panels) {
+  const active = panels.some(([id]) => id === drawerTab) ? drawerTab : panels[0][0];
+  return `<div class="tabs" role="tablist">${panels.map(([id, name]) =>
+      `<button type="button" role="tab" data-tab="${id}" aria-selected="${active === id}">${name}</button>`).join("")}</div>
+    ${panels.map(([id, , html]) => `<div data-panel="${id}" ${active === id ? "" : "hidden"}>${html}</div>`).join("")}`;
+}
+
+// Lean output, one message per `file:line:col: severity:` header.
+function diagnosticsHTML(text) {
+  if (!text) return `<p class="muted">No diagnostics: Lean reported nothing for this file.</p>`;
+  const html = escapeHTML(text).replace(/^(\S+\.lean:\d+:\d+: )(error|warning)(:.*)$/gm,
+    (_, where, severity, rest) => `${where}<span class="${severity}">${severity}${rest}</span>`);
+  return `<pre class="diag">${html}</pre>`;
+}
+const diagnosticErrorLines = text => new Set([...String(text || "").matchAll(/\.lean:(\d+):\d+: error/g)]
+  .map(m => Number(m[1])));
+const flagPill = (value, yes, no) => value == null ? ""
+  : `<span class="pill ${value ? "ok" : "fail"}">${value ? yes : no}</span>`;
+
+// The harness's Lean check of a sample's whole final file.
+function harnessCheckHTML(check) {
+  if (!check || !Object.keys(check).length) {
+    return `<p class="muted">The harness's check of this sample is not recorded.</p>`;
+  }
+  return `
+    <div class="checkline"><span class="k">AIProver harness · Lean check of the final file</span>
+      ${check.verdict ? `<span class="pill ${check.verdict === "PASS" ? "ok" : "fail"}">${escapeHTML(check.verdict)}</span>` : ""}
+      ${flagPill(check.compiles, "compiles", "does not compile")}
+      ${flagPill(check.complete, "no sorry", "contains sorry")}
+      ${check.axioms_used ? `<span class="pill neutral">axioms: ${escapeHTML(check.axioms_used.join(", ") || "none")}</span>` : ""}</div>
+    ${(check.problems || []).length ? `<ul class="problems">${check.problems.map(p => `<li>${escapeHTML(p)}</li>`).join("")}</ul>` : ""}
+    ${diagnosticsHTML(check.diagnostics)}`;
+}
+
+// The pipeline's Lean check of the lemma proof extracted from a sample.
+function extractedCheckHTML(outcome) {
+  const { check, state } = outcome;
+  if (!check) {
+    return `<div class="checkline"><span class="k">Pipeline · Lean check of the extracted lemma proof</span>
+      <span class="pill neutral">not run</span></div>
+      <p class="muted">${state === "late" ? "The lemma was already proved when this sample finished."
+        : "The final file holds no sorry-free proof of the lemma, so nothing was extracted to check."}</p>`;
+  }
+  const errors = check.errors || [];
+  return `
+    <div class="checkline"><span class="k">Pipeline · Lean check of the extracted lemma proof</span>
+      <span class="pill ${check.ok ? "ok" : "fail"}">${check.ok ? (check.sorry_warning ? "compiles · sorry" : "compiles") : plural(errors.length, "error")}</span>
+      ${state === "win" ? `<span class="pill ok">proof kept</span>` : ""} ${stepLink(check)}</div>
+    ${errors.length ? diagnosticsHTML(errors.join("\n")) : ""}`;
+}
+
+// A Lean check of a chat model's code (captain or chat solver).
+function chatCheckHTML(check) {
+  if (!check) return `<p class="muted">Lean did not check this reply.</p>`;
+  const errors = check.errors || [];
+  return `<div class="checkline"><span class="k">Lean check ${stepLink(check)}</span>${stepResult(check)}</div>
+    ${errors.length ? diagnosticsHTML(errors.join("\n")) : `<p class="muted">No errors.</p>`}
+    <div class="tagblock"><span class="tagname">${escapeHTML(check.file || "")}</span>${leanHTML(check.source || "", errorLinesOf(errors), "tall")}</div>`;
+}
+
+// The model's reasoning before assistant turn `turn`, from the logging proxy.
+const reasoningOfTurn = (sample, turn) => (sample.reasoning || []).filter(r => r.turn === turn);
+
+function reasoningBlock(text, open = false) {
+  return `<details class="fold reasoning" ${open ? "open" : ""}><summary><b>Reasoning</b>
+    <span class="muted">${plural(text.split(/\s+/).filter(Boolean).length, "word")}</span></summary>
+    <div class="body"><pre class="plain wrap">${escapeHTML(text)}</pre></div></details>`;
+}
+
+// One tool call: Lean written to a file is shown as Lean, other arguments as JSON.
+function toolCallHTML(call) {
+  let args = call.arguments || "";
+  let lean = "";
+  try {
+    const parsed = JSON.parse(args);
+    if (typeof parsed.content === "string" && /\.lean$/.test(parsed.file_path || parsed.path || "")) {
+      lean = parsed.content;
+      delete parsed.content;
+    }
+    args = JSON.stringify(parsed, null, 1);
+  } catch { /* arguments cut at the trace limit stay as text */ }
+  return `<div class="toolcall"><span class="pill neutral mono">${escapeHTML(call.name || "tool")}</span>
+    <pre class="plain wrap">${escapeHTML(args)}</pre>${lean ? leanHTML(lean, new Set(), "tall") : ""}</div>`;
+}
+
+// The agent's session: its messages, tool calls, tool results and, where the
+// proxy recorded it, its reasoning before each turn.
+function sessionHTML(sample) {
+  const session = sample.session || [];
+  if (!session.length) return `<p class="muted">The session transcript is not recorded for this sample.</p>`;
+  let turn = 0;
+  return `<div class="session">${session.map(entry => {
+    if (entry.role === "tool") {
+      return `<details class="fold toolresult"><summary><span class="mono muted">result of ${escapeHTML(entry.name || "tool")}</span>
+        <span class="muted">${plural(entry.text.split("\n").length, "line")}</span></summary>
+        <div class="body">${/\.lean:\d+:\d+:/.test(entry.text) ? diagnosticsHTML(entry.text) : `<pre class="plain wrap">${escapeHTML(entry.text)}</pre>`}</div></details>`;
+    }
+    if (entry.role === "assistant") {
+      turn += 1;
+      const thoughts = reasoningOfTurn(sample, turn).map(r => reasoningBlock(r.reasoning || "")).join("");
+      return `<div class="turn"><div class="turnhead"><span class="mono">turn ${turn}</span></div>${thoughts}
+        ${entry.text ? `<div class="prose">${mathHTML(entry.text)}</div>` : ""}
+        ${(entry.tool_calls || []).map(toolCallHTML).join("")}</div>`;
+    }
+    return `<details class="fold"><summary><b>${entry.injected ? "Harness message" : turn ? "User message" : "Task"}</b>
+      <span class="muted">${plural(entry.text.split("\n").length, "line")}</span></summary>
+      <div class="body"><pre class="plain wrap">${escapeHTML(entry.text)}</pre></div></details>`;
+  }).join("")}</div>`;
+}
+
+function reasoningHTML(sample) {
+  const records = sample.reasoning || [];
+  if (!records.length) {
+    return `<p class="muted">The model's reasoning is not recorded for this sample. The AIProver harness
+      discards it; runs started after the reasoning proxy was installed record it per turn.</p>`;
+  }
+  return records.map(r => `<div class="turn"><div class="turnhead"><span class="mono">turn ${r.turn}</span>
+    <span class="muted">${escapeHTML(r.time || "")}</span>${r.truncated ? ` <span class="pill fail">stopped at the reply token cap</span>` : ""}</div>${reasoningBlock(r.reasoning || "", true)}</div>`).join("");
+}
+
+// Drawer panels of an AIProver job, for one sample (a solver lane) or all.
+function jobPanels(job, sampleIndex) {
+  const lanes = sampleIndex == null ? jobLanes(job) : [sampleIndex];
+  const per = render => lanes.map(k => {
+    const outcome = sampleOutcome(job, k);
+    const head = lanes.length > 1 ? `<h4 class="lanehead">solver ${k}</h4>` : "";
+    return head + render(outcome.sample || {}, outcome, k);
+  }).join("");
+  return [
+    ["response", "Reply", per(sample => sample.lean
+      ? leanHTML(sample.lean, diagnosticErrorLines(sample.check?.diagnostics), "tall")
+      : `<p class="muted">The final Lean file is not recorded.</p>`)],
+    ["prompt", "Prompt", taggedHTML(job.prompt || "")],
+    ["system", "System prompt", job.system_prompt
+      ? markdownHTML(TRACE.system_prompts?.[job.system_prompt] || job.system_prompt)
+      : `<p class="muted">AIProver composes its own system prompt inside the harness; the task above is
+         what the pipeline sends.</p>`],
+    ["lean", "Lean returns", per((sample, outcome) => harnessCheckHTML(sample.check) + extractedCheckHTML(outcome))],
+    ["session", "Session", per(sample => sessionHTML(sample))],
+    ["reasoning", "Reasoning", per(sample => reasoningHTML(sample))],
+  ];
+}
+
+function stepDetail(step, sampleIndex = null) {
   const meta = [`<span>at <b>${formatClock(step.elapsed_seconds)}</b></span>`, `<span>stage <b>${escapeHTML(step.stage)}</b></span>`];
   let body = "";
-  if (step.kind === "model_call") {
+  if (isJob(step)) {
+    const job = step;
+    meta.push(`<span>AIProver job <b>${jobNumber(job)}</b> on <b>${escapeHTML(job.lemma)}</b></span>`);
+    if (sampleIndex != null) {
+      const o = sampleOutcome(job, sampleIndex);
+      meta.push(`<span>solver <b>${sampleIndex}</b></span>`,
+        `<span>duration <b>${formatDuration(o.end - o.start)}</b></span>`,
+        o.turns != null ? `<span>turns <b>${o.turns}</b></span>` : "",
+        o.sample?.ending ? `<span>ended <b>${escapeHTML(o.sample.ending)}</b></span>` : "",
+        `<span>result <b>${escapeHTML({ win: "proof kept", ok: "compiles", fail: "Lean errors" }[o.state] || o.text)}</b></span>`);
+    } else {
+      meta.push(`<span>duration <b>${formatDuration(job.seconds || 0)}</b></span>`, `<span>samples <b>${jobSummary(job)}</b></span>`);
+    }
+    const previous = (jobsByLemma.get(job.lemma) || [])[jobNumber(job) - 2];
+    const note = `<p class="note">${previous ? `Started after a ${escapeHTML(transitionText(previous, job))} (previous job ${stepLink(previous)}).`
+      : "First AIProver job on this lemma."} Each job runs ${plural(jobSamples(job), "independent session")}.</p>`;
+    body = note + tabsHTML(jobPanels(job, sampleIndex));
+  } else if (step.kind === "model_call") {
     meta.push(`<span>model <b>${escapeHTML(step.model)}</b></span>`,
       `<span>duration <b>${formatDuration(step.seconds || 0)}</b></span>`,
       `<span>output tokens <b>${(step.usage?.outputTokens ?? 0).toLocaleString()}</b></span>`,
@@ -1051,12 +1521,13 @@ function stepDetail(step) {
     const note = step.role === "auditor"
       ? `<p class="note">The auditor's message contains only Lean code. Its system prompt is the auditor playbook.</p>` : "";
     const linked = check ? `<p class="note">The code in this reply was compiled in ${stepLink(check)}: ${stepResult(check)}</p>` : "";
-    const tabs = [["response", "Reply"], ["prompt", "Prompt"], ["system", "System prompt"]];
-    body = `${note}${linked}
-      <div class="tabs" role="tablist">${tabs.map(([id, name]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${drawerTab === id}">${name}</button>`).join("")}</div>
-      <div data-panel="response" ${drawerTab === "response" ? "" : "hidden"}>${step.error ? `<pre class="plain errors">${escapeHTML(step.error)}</pre>` : taggedHTML(step.response || "")}</div>
-      <div data-panel="prompt" ${drawerTab === "prompt" ? "" : "hidden"}>${taggedHTML(step.prompt || "")}</div>
-      <div data-panel="system" ${drawerTab === "system" ? "" : "hidden"}>${markdownHTML(TRACE.system_prompts?.[step.system_prompt] || step.system_prompt || "")}</div>`;
+    const panels = [
+      ["response", "Reply", step.error ? `<pre class="plain errors">${escapeHTML(step.error)}</pre>` : taggedHTML(step.response || "")],
+      ["prompt", "Prompt", taggedHTML(step.prompt || "")],
+      ["system", "System prompt", markdownHTML(TRACE.system_prompts?.[step.system_prompt] || step.system_prompt || "")],
+    ];
+    if (check) panels.push(["lean", "Lean returns", chatCheckHTML(check)]);
+    body = `${note}${linked}${tabsHTML(panels)}`;
   } else if (step.kind === "lean_check") {
     meta.push(`<span>duration <b>${formatDuration(step.seconds || 0)}</b></span>`);
     const call = callOfCheck.get(step.index);
@@ -1117,10 +1588,10 @@ function summaryHead(title, meta = "", dotClass = "") {
     <h3>${title}</h3>${meta ? `<div class="meta">${meta}</div>` : ""}`;
 }
 
-function showStep(index) {
+function showStep(index, sampleIndex = null) {
   const step = steps[index];
   if (!step) return;
-  const { head, body } = stepDetail(step);
+  const { head, body } = stepDetail(step, sampleIndex);
   showDrawer(head, body, index);
 }
 
@@ -1181,19 +1652,20 @@ const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").ma
 // Layout (top → bottom) -----------------------------------------------------------------
 
 // Node widths, and the text lines each kind of node shows, top to bottom.
-const NODE_WIDTH = { problem: 250, root: 250, spine: 230, lemma: 230, attempt: 140, assemble: 260, final: 280 };
+const NODE_WIDTH = { problem: 250, root: 250, spine: 230, lemma: 230, job: 290, attempt: 140, assemble: 260, final: 280 };
 const NODE_LINES = {
   problem: ["eyebrow", "title", "subtitle"],
   root: ["eyebrow", "title", "subtitle", "status"],
   spine: ["title", "subtitle", "status"],
   lemma: ["title", "subtitle", "status"],
+  job: ["title", "subtitle", "status"],
   attempt: ["title", "subtitle", "status"],
   assemble: ["eyebrow", "title", "subtitle", "status"],
   final: ["eyebrow", "title", "subtitle", "status"],
 };
 const LINE_HEIGHT = { eyebrow: 16, title: 19, subtitle: 16, status: 16 };
 const PAD_TOP = 9, PAD_BOTTOM = 14;   // bottom padding holds the progress bar
-const LANE = 160, LEMMA_GAP = 90, ROW = 118;
+const LANE = 160, ROW = 118;
 
 const nodes = [];
 const edges = [];
@@ -1222,6 +1694,13 @@ function callNode(call, fields) {
   };
 }
 
+// Each accepted sketch is drawn as a tree: the sketch fans out left to right
+// into its lemmas, and the attempts on each lemma stack downward beneath it
+// (AIProver: one block per job, its parallel sessions below; chat solvers:
+// one lane per chain). A replan starts the next sketch's tree below; lemmas
+// it keeps from an earlier sketch appear as single nodes.
+const LEMMA_GAP = 90, KEPT_GAP = 30;
+
 function buildLayout() {
   let y = 0;
   const problemNode = addNode({ id: "problem", kind: "problem", x: 0, y, start: 0, end: 0,
@@ -1231,58 +1710,179 @@ function buildLayout() {
     title: "Captain", subtitle: `orchestrator · ${TRACE.models?.orchestrator}` });
   addEdge(problemNode, root, "captain", { label: "statement + proof" });
 
-  // Captain and auditor work, in time order; the auditor branches to the right.
-  const spineCalls = calls.filter(c => c.role === "captain" || c.role === "auditor").sort((a, b) => a.index - b.index);
-  let previous = root, lastCaptain = root;
-  for (const call of spineCalls) {
+  const sketchEvents = eventsOf("sketch_accepted");
+  const spineCalls = calls.filter(c => (c.role === "captain" || c.role === "auditor") && !isHandback(c))
+    .sort((a, b) => a.index - b.index);
+  // Captain and auditor calls up to each accepted sketch; the auditor branches right.
+  const segments = sketchEvents.map((event, k) => spineCalls.filter(c => c.index < event.index
+    && (k === 0 || c.index > sketchEvents[k - 1].index)));
+  const tail = spineCalls.filter(c => !sketchEvents.length || c.index > sketchEvents.at(-1).index);
+  let previous = root, lastCaptain = root, bypass = null;
+  const placeSpine = call => {
     y += ROW;
     const isAuditor = call.role === "auditor";
     const kindText = /^formalize/.test(call.label) ? "Formalize" : /^judge/.test(call.label) ? "Faithfulness verdict"
-      : /^sketch/.test(call.label) ? "Proof sketch" : isAuditor ? "Blind read-back" : call.label;
+      : /^sketch/.test(call.label) ? (lastCaptain.sketch ? "Revised sketch" : "Proof sketch") : isAuditor ? "Blind read-back" : call.label;
     const node = addNode({ id: `s${call.index}`, kind: "spine", x: isAuditor ? 300 : 0, y, ...callNode(call, {
-      title: kindText, subtitle: `${call.role} · ${call.label}`, band: /^formalize/.test(call.label) ? "Formalize"
+      title: kindText, subtitle: `${call.role} · ${call.label}`, sketch: /^sketch/.test(call.label),
+      band: /^formalize/.test(call.label) ? "Formalize"
         : isAuditor || /^judge/.test(call.label) ? "Audit" : /^sketch/.test(call.label) ? "Sketch" : null }) });
-    addEdge(previous, node, call.role, { label: isAuditor ? "delegates code only" : previous.role === "auditor" ? "read-back" : "" });
+    // After a sketch's tree, the edge to the replan runs down its left side.
+    addEdge(previous, node, call.role, bypass != null ? { route: "bus", bus: bypass, label: "replan" }
+      : { label: isAuditor ? "delegates code only" : previous.role === "auditor" ? "read-back" : "" });
+    bypass = null;
     previous = node;
     if (!isAuditor) lastCaptain = node;
-  }
+  };
 
-  // Sketch fans out into lemmas; each lemma fans out into solver lanes.
-  const lemmaNames = lemmaOrder.filter(name => calls.some(c => c.lemma === name));
-  const workers = [...new Set(calls.filter(c => c.lemma != null).map(c => c.worker))].sort((a, b) => a - b);
-  const blockWidth = workers.length * LANE;
-  const sketchTime = (eventsOf("sketch_accepted").at(-1) || {}).elapsed_seconds ?? lastCaptain.end;
-  y += ROW + 20;
-  const lemmaY = y;
-  const attemptTop = lemmaY + ROW;
-  let deepest = attemptTop;
-  const winners = [];
-  lemmaNames.forEach((name, i) => {
-    const x = (i - (lemmaNames.length - 1) / 2) * (blockWidth + LEMMA_GAP);
-    const win = lemmaWins.get(name);
-    const lemmaNode = addNode({ id: `lemma:${name}`, kind: "lemma", role: "solver", x, y: lemmaY,
-      start: sketchTime, end: win ? win.elapsed_seconds : runEnd, lemma: name, win,
-      title: name, subtitle: `${workers.length} solvers in parallel`, band: i === 0 ? "Prove" : null });
-    addEdge(lastCaptain, lemmaNode, "captain", { label: i === Math.floor(lemmaNames.length / 2) ? "delegates lemmas" : "" });
-    workers.forEach((worker, k) => {
-      const laneX = x + (k - (workers.length - 1) / 2) * LANE;
-      let upstream = lemmaNode;
-      calls.filter(c => c.lemma === name && c.worker === worker).sort((a, b) => a.index - b.index)
-        .forEach((call, r) => {
-          const ay = attemptTop + r * ROW;
-          deepest = Math.max(deepest, ay);
-          const node = addNode({ id: `a${call.index}`, kind: "attempt", x: laneX, y: ay, ...callNode(call, {
-            title: `solver ${worker} · r${call.round}`, subtitle: `#${call.index} · ${formatClock(callStart(call))}`, lemma: name, worker }) });
-          const repair = upstream.kind === "attempt";
-          addEdge(upstream, node, "solver", repair ? { repair: true, label: "errors" } : {});
-          upstream = node;
-          if (win && sameAttempt(win, call)) winners.push(node);
+  const workers = jobsByLemma.size ? sampleLanes()
+    : [...new Set(calls.filter(c => c.lemma != null).map(c => c.worker))].sort((a, b) => a - b);
+  const blockWidth = Math.max(NODE_WIDTH.lemma, workers.length * LANE);
+  const runEndTime = outcome.wall_seconds ?? runEnd;
+  let winners = [], keptNodes = [];
+
+  sketchEvents.forEach((event, k) => {
+    segments[k].forEach(placeSpine);
+    const sketchNode = lastCaptain;
+    const next = sketchEvents[k + 1];
+    const replanAt = next ? (decisions.find(d => d.event === "replan" && d.index > event.index && d.index < next.index)
+      || next).elapsed_seconds : null;
+    const inSection = step => step.index > event.index && (!next || step.index < next.index);
+    // The sketch's lemmas, with lemmas split off by a hand-back before their parent.
+    const splits = decisions.filter(d => d.event === "lemma_handback" && d.action === "split" && inSection(d));
+    const statements = [...(event.lemmas || [])];
+    for (const split of splits) {
+      const at = statements.findIndex(st => lemmaName(st) === split.lemma);
+      statements.splice(Math.max(0, at), 0, ...(split.new_lemmas || []));
+    }
+    const names = statements.map(lemmaName).filter(Boolean);
+    const statementOf = name => statements.find(st => lemmaName(st) === name);
+    const splitFrom = new Map(splits.flatMap(split => (split.new_lemmas || []).map(st => [lemmaName(st), split])));
+    const reused = new Set(decisions.filter(d => d.event === "lemma_reused" && inSection(d)).map(d => d.lemma));
+    const earlier = name => sketchEvents.slice(0, k).some(e => (e.lemmas || []).some(st => lemmaName(st) === name));
+    winners = []; keptNodes = [];
+    const handbackNodes = new Map(), pendingSplitEdges = [];
+
+    // Lemma columns left to right, centred under the sketch.
+    const widths = names.map(name => reused.has(name) ? NODE_WIDTH.lemma : blockWidth);
+    // Kept lemmas sit closer together than lemmas with attempts beneath them.
+    const gaps = names.map((name, i) => !i ? 0 : reused.has(name) && reused.has(names[i - 1]) ? KEPT_GAP : LEMMA_GAP);
+    const total = sum(widths) + sum(gaps);
+    let cursor = -total / 2;
+    const lemmaY = y + ROW + 20, attemptTop = lemmaY + ROW;
+    let deepest = lemmaY, minX = 0;
+    names.forEach((name, i) => {
+      cursor += gaps[i];
+      const x = cursor + widths[i] / 2;
+      cursor += widths[i];
+      minX = Math.min(minX, x - widths[i] / 2);
+      const middle = i === Math.floor(names.length / 2);
+      if (reused.has(name)) {
+        const node = addNode({ id: `lemma:${k}:${name}`, kind: "lemma", role: "solver", x, y: lemmaY,
+          start: event.elapsed_seconds, end: event.elapsed_seconds, lemma: name, carried: true,
+          statement: statementOf(name), win: lemmaWins.get(name), title: name,
+          subtitle: "proved in an earlier sketch", band: i === 0 ? "Prove" : null });
+        addEdge(sketchNode, node, "captain", { label: middle ? "kept and delegated lemmas" : "" });
+        keptNodes.push(node);
+        return;
+      }
+      const win = lemmaWins.get(name);
+      const sectionWin = win && inSection(win) ? win : null;
+      const lemmaNode = addNode({ id: `lemma:${k}:${name}`, kind: "lemma", role: "solver", x, y: lemmaY,
+        start: splitFrom.get(name)?.elapsed_seconds ?? event.elapsed_seconds,
+        end: sectionWin ? sectionWin.elapsed_seconds : (replanAt ?? runEndTime),
+        closeAt: sectionWin ? null : (replanAt ?? (outcome.status ? runEndTime : null)), replanned: replanAt != null,
+        lemma: name, win: sectionWin, title: name, statement: statementOf(name),
+        subtitle: splitFrom.has(name) ? `split from ${splitFrom.get(name).lemma}` : earlier(name) ? "restated after replan" : k ? "new in this sketch" : jobsByLemma.size
+          ? `AIProver · ${cfg.workers ?? 1} sessions per job` : `${workers.length} solvers in parallel`,
+        band: i === 0 ? "Prove" : null });
+      if (splitFrom.has(name)) pendingSplitEdges.push([splitFrom.get(name), lemmaNode]);
+      else addEdge(sketchNode, lemmaNode, "captain", { label: middle ? (k ? "kept and delegated lemmas" : "delegates lemmas") : "" });
+
+      if (jobsByLemma.size) {
+        // Jobs and hand-backs stack downward; every session of a job feeds
+        // the next item.
+        let upstream = [lemmaNode], previousItem = null, jy = attemptTop;
+        const items = calls.filter(c => inSection(c) && ((isJob(c) && c.lemma === name) || handbackLemma(c) === name))
+          .sort((a, b) => a.index - b.index);
+        items.forEach(item => {
+          if (isHandback(item)) {
+            const decision = decisions.find(d => d.event === "lemma_handback" && d.lemma === name && d.index > item.index);
+            const node = addNode({ id: `h${item.index}`, kind: "spine", x, y: jy, ...callNode(item, {
+              role: "captain", title: "Hand-back to captain",
+              subtitle: decision ? `captain · ${decision.action}` : "captain", handback: decision || null, lemma: name }) });
+            upstream.forEach((up, u) => addEdge(up, node, "captain",
+              u === Math.floor((upstream.length - 1) / 2) ? { label: "hand-back" } : {}));
+            if (decision?.action === "proof" || decision?.action === "split") winners.push(node);
+            if (decision) handbackNodes.set(decision.index, node);
+            upstream = [node]; previousItem = item; jy += ROW;
+            deepest = Math.max(deepest, node.y);
+            return;
+          }
+          const job = item;
+          const lanes = jobLanes(job);
+          const outcomes = lanes.map(w => sampleOutcome(job, w));
+          const start = Math.min(...outcomes.map(o => o.start));
+          const jobNode = addNode({ id: `j${job.index}`, kind: "job", x, y: jy, step: job, role: "solver",
+            start, replied: job.elapsed_seconds, end: job.elapsed_seconds, outcomes, lemma: name,
+            title: `AIProver job ${jobNumber(job)}`,
+            subtitle: `${formatClock(start)} · ${formatDuration(job.elapsed_seconds - start)} · ${plural(lanes.length, "session")}` });
+          const label = !previousItem ? "" : isHandback(previousItem) ? "after hand-back" : transitionText(previousItem, job);
+          upstream.forEach((up, u) => addEdge(up, jobNode, "solver",
+            label && u === Math.floor((upstream.length - 1) / 2) ? { label } : {}));
+          // Sessions spread under the job; many sessions are packed closer.
+          const spacing = Math.min(LANE, (blockWidth + LEMMA_GAP - 20) / lanes.length);
+          upstream = lanes.map((sampleIndex, w) => {
+            const outcome = outcomes[w];
+            const ay = jy + ROW;
+            deepest = Math.max(deepest, ay);
+            const node = addNode({ id: `a${job.index}s${sampleIndex}`, kind: "attempt",
+              x: x + (w - (lanes.length - 1) / 2) * spacing, y: ay,
+              step: job, check: outcome.check, role: "solver", sample: sampleIndex, outcome,
+              start: outcome.start, replied: outcome.end,
+              end: outcome.check ? outcome.check.elapsed_seconds : outcome.end,
+              title: `session ${sampleIndex}`,
+              subtitle: `${formatClock(outcome.start)} · ${formatDuration(outcome.end - outcome.start)}${outcome.turns != null ? ` · ${outcome.turns}t` : ""}`,
+              lemma: name, worker: sampleIndex });
+            addEdge(jobNode, node, "solver");
+            if (outcome.state === "win") winners.push(node);
+            return node;
+          });
+          previousItem = job; jy += 2 * ROW;
         });
+        return;
+      }
+      // Chat solvers: one lane per chain, its repair rounds stacked downward.
+      workers.forEach((worker, w) => {
+        const laneX = x + (w - (workers.length - 1) / 2) * LANE;
+        let upstream = lemmaNode;
+        calls.filter(c => c.lemma === name && c.worker === worker && inSection(c))
+          .sort((a, b) => a.index - b.index).forEach((call, r) => {
+            const ay = attemptTop + r * ROW;
+            deepest = Math.max(deepest, ay);
+            const node = addNode({ id: `a${call.index}`, kind: "attempt", x: laneX, y: ay, ...callNode(call, {
+              title: `solver ${worker} · r${call.round}`, subtitle: `#${call.index} · ${formatClock(callStart(call))}`,
+              lemma: name, worker }) });
+            const label = upstream.kind === "attempt" ? transitionText(upstream.step, call) : "";
+            addEdge(upstream, node, "solver", label ? { repair: label === "errors", label } : {});
+            upstream = node;
+            if (sectionWin && sameAttempt(sectionWin, call)) winners.push(node);
+          });
+      });
     });
+    // A split lemma hangs from the hand-back that created it.
+    for (const [split, lemmaNode] of pendingSplitEdges) {
+      const from = handbackNodes.get(split.index);
+      if (from) addEdge(from, lemmaNode, "captain", { label: "split" });
+      else addEdge(sketchNode, lemmaNode, "captain");
+    }
+    y = deepest + 30;
+    bypass = minX - 40;
   });
+  tail.forEach(placeSpine);
 
-  // Winning proofs converge on assembly, then on the verified result.
-  y = deepest + ROW + 30;
+  // The lemmas of the final sketch are spliced into it and verified.
+  y += ROW;
   const assembleSteps = steps.filter(s => s.stage === "assemble");
   const finalCheck = assembleSteps.find(s => s.kind === "lean_check");
   const verification = eventsOf("final_verification").at(-1);
@@ -1291,8 +1891,8 @@ function buildLayout() {
       start: finalCheck ? finalCheck.elapsed_seconds - (finalCheck.seconds || 0) : assembleSteps[0].elapsed_seconds,
       end: finalCheck ? finalCheck.elapsed_seconds : assembleSteps[0].elapsed_seconds,
       step: finalCheck, title: "Assemble and verify", subtitle: "Lean · proofs spliced into sketch", band: "Verify" });
-    winners.forEach(w => addEdge(w, assemble, "ok", { win: true }));
-    if (!winners.length) addEdge(lastCaptain, assemble, "lean");
+    [...winners, ...keptNodes].forEach(node => addEdge(node, assemble, "ok", { win: true }));
+    if (!winners.length && !keptNodes.length) addEdge(lastCaptain, assemble, "lean");
     if (verification) {
       y += ROW + 6;
       const final = addNode({ id: "final", kind: "final", role: "lean", x: 0, y,
@@ -1311,8 +1911,24 @@ function nodeState(node, t) {
   if (t < node.start) return { phase: "hidden" };
   if (node.kind === "problem" || node.kind === "root") return { phase: "done", status: "neutral", line: node.kind === "root" ? `${callsByRole("captain").length} calls in this run` : "" };
   if (node.kind === "lemma") {
-    if (node.win && t >= node.win.elapsed_seconds) return { phase: "done", status: "ok", line: `proved · solver ${node.win.worker}, r${node.win.round}` };
+    if (node.carried) return { phase: "done", status: "ok", line: "kept ✓" };
+    if (node.win && t >= node.win.elapsed_seconds) return { phase: "done", status: "ok", line: `proved · ${winnerText(node.win)}` };
+    if (node.closeAt != null && t >= node.closeAt)
+      return { phase: "done", status: "fail", line: node.replanned ? "not proved · to replan" : "not proved" };
     return { phase: "running", status: "run", line: "solvers working", progress: null };
+  }
+  if (node.kind === "job") {
+    if (t < node.replied) {
+      const working = node.outcomes.filter(o => t < o.end).length;
+      return { phase: "running", status: "run", line: `${plural(working, "session")} working`,
+        progress: (t - node.start) / Math.max(1, node.replied - node.start) };
+    }
+    const states = node.outcomes.map(o => o.state);
+    const status = states.includes("win") ? "win" : states.includes("ok") ? "ok"
+      : states.every(state => state === "late") ? "late" : "fail";
+    const line = status === "win" ? "proof kept ✓" : status === "late" ? "after lemma proved"
+      : status === "ok" ? "compiles" : "no proof kept";
+    return { phase: "done", status, line };
   }
   if (node.kind === "final") return { phase: "done", status: node.step.checks?.verified ? "ok" : "fail", line: "no sorry · statement matches" };
   if (node.kind === "assemble") {
@@ -1320,18 +1936,35 @@ function nodeState(node, t) {
     return { phase: "done", status: node.step?.ok ? "ok" : "fail", line: node.step?.ok ? "compiles, no sorry" : "Lean errors" };
   }
   // Model-call nodes.
+  if (node.handback !== undefined && t >= node.replied) {
+    const action = node.handback?.action;
+    const line = { proof: "captain's proof kept ✓", split: "split; proof kept ✓", restate: "lemma restated",
+      retry: "retry unchanged", rejected: "reply rejected by Lean" }[action] || "reply received";
+    return { phase: "done", status: action === "proof" || action === "split" ? "ok" : action === "rejected" ? "fail" : "neutral", line };
+  }
   if (t < node.replied) {
     const progress = (t - node.start) / Math.max(1, node.replied - node.start);
     return { phase: "running", status: "run", line: `thinking · ${formatClock(t - node.start)}`, progress };
   }
   if (node.check && t < node.check.elapsed_seconds) return { phase: "compiling", status: "lean", line: "Lean compiling…" };
+  if (node.outcome) {
+    const { state, check, text } = node.outcome;
+    const win = lemmaWins.get(node.step.lemma);
+    if (state === "win" && t < win.elapsed_seconds) return { phase: "done", status: "ok", line: "compiles" };
+    const line = { win: "proof kept ✓", ok: "compiles", fail: `✗ ${plural((check?.errors || []).length, "error")}`,
+      late: `${text} · after lemma proved` }[state] || text;
+    const status = { win: "win", ok: "ok", fail: "fail" }[state] || "late";
+    return { phase: "done", status, line };
+  }
   if (node.step.lemma != null) {
     const state = solverOutcome(node.step).state;
     const win = lemmaWins.get(node.step.lemma);
     if (state === "win" && t < win.elapsed_seconds) return { phase: "done", status: "ok", line: "compiles" };
     const errors = (node.check?.errors || []).length;
-    const text = { win: "proof kept ✓", ok: "compiles", fail: `✗ ${plural(errors, "error")}`, late: "discarded", rejected: "rejected", pending: "no check" }[state];
-    return { phase: "done", status: state === "late" ? "late" : state === "win" ? "win" : state === "fail" ? "fail" : "ok", line: text };
+    const text = state === "pending" && isJob(node.step) ? jobSummary(node.step)
+      : { win: "proof kept ✓", ok: "compiles", fail: `✗ ${plural(errors, "error")}`, late: "discarded", rejected: "rejected", pending: "no proof returned" }[state];
+    const status = { late: "late", win: "win", fail: "fail", ok: "ok", rejected: "late", pending: "late" }[state];
+    return { phase: "done", status, line: text };
   }
   if (node.check) return { phase: "done", status: node.check.ok ? "ok" : "fail", line: node.check.ok ? (node.check.sorry_warning ? "compiles (sorry)" : "compiles") : `✗ ${plural(node.check.errors.length, "error")}` };
   const verdict = eventsOf("audit_verdict").find(v => v.index > node.step.index);
@@ -1343,8 +1976,17 @@ function nodeState(node, t) {
 
 const clip = (text, max) => text.length > max ? text.slice(0, max - 1) + "…" : text;
 
+// Edges run top to bottom; a `bus` edge leaves a node's left side, runs down a
+// vertical line at x = `bus` (left of a sketch's tree) and enters the
+// target's left side.
 function edgeGeometry(edge) {
   const a = edge.from, b = edge.to;
+  if (edge.route === "bus") {
+    const x1 = a.x - a.w / 2, x2 = b.x - b.w / 2 - 3, bus = Math.min(edge.bus, x1 - 12);
+    const enter = b.y, r = 8;
+    return { d: `M${x1},${a.y} H${bus + r} Q${bus},${a.y} ${bus},${a.y + r} V${enter - r} Q${bus},${enter} ${bus + r},${enter} H${x2}`,
+      lx: bus + 10, ly: enter - 12 };
+  }
   const x1 = a.x, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y - b.h / 2 - 3;
   const mid = (y1 + y2) / 2;
   return { d: `M${x1},${y1} C${x1},${mid} ${x2},${mid} ${x2},${y2}`, lx: (x1 + x2) / 2 + 6, ly: mid };
@@ -1389,8 +2031,9 @@ function nodeMarkup(node) {
 const BANDS = [];
 function bandMarkup() {
   // Phase labels to the left of the first node of each phase.
+  // A phase that recurs after another (a later sketch) is labelled again.
   return nodes.filter(n => n.band).map(n => {
-    if (BANDS.some(b => b.name === n.band)) return "";
+    if (BANDS.at(-1)?.name === n.band) return "";
     BANDS.push({ name: n.band, y: n.y, start: n.start });
     return `<text class="band-label" x="${n.x - n.w / 2 - 18}" y="${n.y + 4}" text-anchor="end">${n.band.toUpperCase()}</text>`;
   }).join("");
@@ -1442,11 +2085,12 @@ function updateGraph(t) {
   }
   const packetSpan = PACKET_SECONDS * speed;
   for (const edge of edges) {
-    const visible = t >= edge.to.start;
+    const shownAt = edge.at ?? edge.to.start;
+    const visible = t >= shownAt;
     edge.el.classList.toggle("hidden", !visible);
     edge.el.setAttribute("stroke-dashoffset", visible ? 0 : 1);
     edge.labelEl?.classList.toggle("hidden", !visible);
-    const since = t - edge.to.start;
+    const since = t - shownAt;
     const moving = !reducedMotion && playing && since >= 0 && since < packetSpan && edge.length;
     if (moving) {
       const point = edge.el.getPointAtLength(since / packetSpan * edge.length);
@@ -1462,7 +2106,8 @@ function updateGraph(t) {
 // Narration ---------------------------------------------------------------------------
 
 function describe(step) {
-  const who = step.lemma != null ? `Solver ${step.worker} on ${step.lemma}` : null;
+  const who = step.lemma == null ? null
+    : isJob(jobOf(step)) ? `AIProver job ${jobNumber(jobOf(step))} on ${step.lemma}` : `Solver ${step.worker} on ${step.lemma}`;
   if (step.kind === "model_call") {
     const call = step;
     const started = [callStart(call)];
@@ -1474,6 +2119,10 @@ function describe(step) {
       text: "The captain compares the auditor's read-back with the source statement: does the Lean code say exactly what the source says?" };
     if (/^sketch/.test(call.label)) return { t: started[0], role: "captain", title: "Captain sketches the proof",
       text: "The captain splits the proof into lemmas, each stated in full but left as sorry, and proves the main theorem from them." };
+    if (isHandback(call)) return { t: started[0], role: "captain", title: `${handbackLemma(call)} handed back to the captain`,
+      text: "The solvers failed on this lemma repeatedly. The captain reads their attempts and proves the lemma itself, splits it, restates it, or asks for a retry." };
+    if (isJob(call)) return { t: started[0], role: "solver", title: who,
+      text: `AIProver runs ${plural((call.samples || []).length || (cfg.workers ?? 1), "independent agentic Lean session")} on the lemma; ${jobSummary(call)}.` };
     if (call.lemma != null) return { t: started[0], role: "solver", title: `${who}, round ${call.round}`,
       text: call.round === 0 ? "The solver proposes a proof of the lemma from its statement, the definitions and the informal proof."
         : "The solver receives its previous proof with Lean's error messages and proposes a repair." };
@@ -1482,9 +2131,17 @@ function describe(step) {
     if (step.lemma != null) {
       const call = callOfCheck.get(step.index);
       const late = call && solverOutcome(call).state === "late";
-      return { t: step.elapsed_seconds, role: "lean", title: `Lean checks ${step.lemma} (solver ${step.worker}, r${step.round})`,
+      const job = jobOf(step);
+      if (captainCheck(step)) return { t: step.elapsed_seconds, role: "lean",
+        title: `Lean checks the captain's ${/_restated$/.test(step.label) ? "restated sketch" : "proof"} for ${step.lemma}`,
+        text: step.ok ? "It compiles." : `Lean reports ${plural(step.errors.length, "error")}.` };
+      return { t: step.elapsed_seconds, role: "lean",
+        title: job ? `Lean checks ${step.lemma} (AIProver job ${jobNumber(job)}, sample ${step.worker})`
+          : `Lean checks ${step.lemma} (solver ${step.worker}, r${step.round})`,
         text: late ? "This chain replied after the lemma was already proved; its result is discarded."
-          : step.ok ? "The proof compiles." : `Lean reports ${plural(step.errors.length, "error")}; they are sent back to the solver.` };
+          : step.ok ? "The proof compiles."
+          : job ? `Lean reports ${plural(step.errors.length, "error")} in the proof extracted from this sample.`
+          : `Lean reports ${plural(step.errors.length, "error")}; they are sent back to the solver.` };
     }
     if (step.stage === "assemble") return { t: step.elapsed_seconds, role: "lean", title: "Lean compiles the assembled solution",
       text: `The kept proofs replace every sorry in the sketch. ${step.ok ? "The complete file compiles" : "The file fails"}${step.sorry_warning ? "" : " with no sorry"}.` };
@@ -1495,11 +2152,16 @@ function describe(step) {
   if (step.event === "audit_verdict") return { t: step.elapsed_seconds, role: "captain", title: `Verdict: ${step.verdict}`,
     text: step.verdict === "FAITHFUL" ? "The read-back matches the source, so the formal statement is accepted." : "The formalization is sent back for revision." };
   if (step.event === "sketch_accepted") return { t: step.elapsed_seconds, role: "captain", title: `${plural((step.lemmas || []).length, "lemma")} delegated`,
-    text: `Each lemma goes to ${cfg.workers ?? "several"} independent solver chains running in parallel; the first proof that compiles is kept.` };
+    text: jobsByLemma.size
+      ? `Each lemma goes to an AIProver job of ${plural(cfg.workers ?? 1, "sample")}; the first sample whose proof compiles is kept.`
+      : `Each lemma goes to ${cfg.workers ?? "several"} independent solver chains running in parallel; the first proof that compiles is kept.` };
   if (step.event === "lemma_proved") return { t: step.elapsed_seconds, role: "solver", title: `${step.lemma} proved`,
-    text: `Solver ${step.worker}'s round-${step.round} proof is kept. The other chains on this lemma stop.` };
+    text: jobOf(step) ? `The proof from ${winnerText(step)} is kept.`
+      : `Solver ${step.worker}'s round-${step.round} proof is kept. The other chains on this lemma stop.` };
   if (step.event === "final_verification") return { t: step.elapsed_seconds, role: "lean", title: step.checks?.verified ? "Verified" : "Verification failed",
     text: step.checks?.verified ? `The solution compiles without sorry, uses only ${(step.checks.axioms || []).join(", ")}, and its type equals the audited theorem.` : "One or more final checks failed." };
+  if (step.event === "lemma_handback") return { t: step.elapsed_seconds, role: "captain",
+    title: `Hand-back of ${step.lemma}: ${step.action}`, text: step.diagnosis || "" };
   if (step.event === "replan") return { t: step.elapsed_seconds, role: "captain", title: "Captain revises the sketch",
     text: "Some lemmas were not proved within budget; the captain writes a new decomposition." };
   return null;
@@ -1660,10 +2322,10 @@ function openNode(node) {
        ${stepList(callsByRole("captain"))}`);
   }
   if (node.kind === "lemma") {
-    const statement = (finalSketch?.lemmas || []).find(l => lemmaName(l) === node.lemma);
+    const statement = node.statement || (finalSketch?.lemmas || []).find(l => lemmaName(l) === node.lemma);
     return showDrawer(summaryHead(`<code>${escapeHTML(node.lemma)}</code>`, `<span>${plural(calls.filter(c => c.lemma === node.lemma).length, "solver call")}</span>`, "solver"),
       `${statement ? `<div class="tagblock"><span class="tagname">statement</span>${leanHTML(statement)}</div>` : ""}
-       ${node.win ? `<div class="tagblock"><span class="tagname">kept proof · solver ${node.win.worker}, round ${node.win.round}</span>${leanHTML(node.win.proof || "")}</div>` : ""}
+       ${node.win ? `<div class="tagblock"><span class="tagname">kept proof · ${winnerText(node.win)}</span>${leanHTML(node.win.proof || "")}</div>` : ""}
        ${stepList(steps.filter(s => s.lemma === node.lemma))}`);
   }
   if (node.kind === "final") {
@@ -1672,7 +2334,7 @@ function openNode(node) {
         .map(([k, v]) => `<tr><td class="num">${k}</td><td>${v ? `<span class="pill ok">pass</span>` : `<span class="pill fail">fail</span>`}</td></tr>`).join("")}</table>
        ${leanHTML(node.step.solution || "", new Set(), "tall")}`);
   }
-  if (node.step) showStep(node.step.index);
+  if (node.step) showStep(node.step.index, node.sample ?? null);
 }
 
 // Export ------------------------------------------------------------------------------

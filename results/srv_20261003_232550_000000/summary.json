@@ -1,0 +1,110 @@
+{
+  "run_id": "srv_20261003_232550_000000",
+  "uuid": "JiatuBook_BoundedArithmetic_000000",
+  "slug": "fp_subset_f",
+  "config": {
+    "agents": {
+      "captain": {
+        "backend": "claude_cli",
+        "model": "claude-sonnet-5-5",
+        "timeout": 2400
+      },
+      "auditor": {
+        "backend": "claude_cli",
+        "model": "claude-sonnet-5-5"
+      },
+      "solver": {
+        "backend": "aiprover",
+        "model": "aiprover",
+        "config": "aiprover/aiprover_vista.toml",
+        "cli": "AIProver/AIProver_plugin/bin/aiprover",
+        "timeout": 5400,
+        "max_turns": 60
+      }
+    },
+    "workers": 2,
+    "max_repairs": 4,
+    "max_replans": 1,
+    "max_audit_rounds": 2,
+    "lean_parallel": 4,
+    "lean_timeout": 300,
+    "max_claude_calls": 10,
+    "max_sketch_lemmas": 5,
+    "aiprover_lemma_concurrency": 4
+  },
+  "status": "lemmas_unproved",
+  "formalization": {
+    "definitions": "abbrev Str := List Bool\n\ndef smashStr (a b : Str) : Str := (List.replicate b.length a).flatten\n\ndef snocS {n : \u2115} (x : Fin n \u2192 Str) (y : Str) : Fin (n+1) \u2192 Str :=\n  Fin.snoc (\u03b1 := fun _ => Str) x y\n\n/-- Cobham's class F. Strings: s_b(x) = x ++ [b]. -/\ninductive CobhamF : (n : \u2115) \u2192 ((Fin n \u2192 Str) \u2192 Str) \u2192 Prop\n  | empty (n : \u2115) : CobhamF n (fun _ => [])\n  | succ (n : \u2115) (b : Bool) (i : Fin n) : CobhamF n (fun x => x i ++ [b])\n  | proj (n : \u2115) (i : Fin n) : CobhamF n (fun x => x i)\n  | smash : CobhamF 2 (fun x => smashStr (x 0) (x 1))\n  | comp (n m : \u2115) (h : (Fin m \u2192 Str) \u2192 Str) (g : Fin m \u2192 (Fin n \u2192 Str) \u2192 Str) :\n      CobhamF m h \u2192 (\u2200 j, CobhamF n (g j)) \u2192 CobhamF n (fun x => h (fun j => g j x))\n  | lrec (n : \u2115) (g : (Fin n \u2192 Str) \u2192 Str)\n      (h : Bool \u2192 (Fin (n+2) \u2192 Str) \u2192 Str)\n      (k : (Fin (n+1) \u2192 Str) \u2192 Str)\n      (f : (Fin (n+1) \u2192 Str) \u2192 Str) :\n      CobhamF n g \u2192 (\u2200 b, CobhamF (n+2) (h b)) \u2192 CobhamF (n+1) k \u2192\n      (\u2200 x, f (snocS x []) = g x) \u2192\n      (\u2200 x y b, f (snocS x (y ++ [b])) = h b (snocS (snocS x y) (f (snocS x y)))) \u2192\n      (\u2200 x y, (f (snocS x y)).length \u2264 (k (snocS x y)).length) \u2192\n      CobhamF (n+1) f\n\n/-- Variant F' with the modified bound |h_i(x,y,z)| \u2264 |z \u2218 k_i(x,y)|. -/\ninductive CobhamF' : (n : \u2115) \u2192 ((Fin n \u2192 Str) \u2192 Str) \u2192 Prop\n  | empty (n : \u2115) : CobhamF' n (fun _ => [])\n  | succ (n : \u2115) (b : Bool) (i : Fin n) : CobhamF' n (fun x => x i ++ [b])\n  | proj (n : \u2115) (i : Fin n) : CobhamF' n (fun x => x i)\n  | smash : CobhamF' 2 (fun x => smashStr (x 0) (x 1))\n  | comp (n m : \u2115) (h : (Fin m \u2192 Str) \u2192 Str) (g : Fin m \u2192 (Fin n \u2192 Str) \u2192 Str) :\n      CobhamF' m h \u2192 (\u2200 j, CobhamF' n (g j)) \u2192 CobhamF' n (fun x => h (fun j => g j x))\n  | lrec (n : \u2115) (g : (Fin n \u2192 Str) \u2192 Str)\n      (h : Bool \u2192 (Fin (n+2) \u2192 Str) \u2192 Str)\n      (k : Bool \u2192 (Fin (n+1) \u2192 Str) \u2192 Str)\n      (f : (Fin (n+1) \u2192 Str) \u2192 Str) :\n      CobhamF' n g \u2192 (\u2200 b, CobhamF' (n+2) (h b)) \u2192 (\u2200 b, CobhamF' (n+1) (k b)) \u2192\n      (\u2200 x, f (snocS x []) = g x) \u2192\n      (\u2200 x y b, f (snocS x (y ++ [b])) = h b (snocS (snocS x y) (f (snocS x y)))) \u2192\n      (\u2200 b x y z, (h b (snocS (snocS x y) z)).length \u2264 (z ++ k b (snocS x y)).length) \u2192\n      CobhamF' (n+1) f",
+    "preamble": "",
+    "theorem_name": "fp_subset_f",
+    "signature": " (n : \u2115) (f : (Fin n \u2192 Str) \u2192 Str) (hf : CobhamF' n f) :\n    CobhamF n f ",
+    "notes": "Strings are `List Bool` with s_b(x) = x ++ [b]; \u03b5 = []; smash is x repeated |y| times (matching x#\u03b5=\u03b5, x#s_i y = x\u2218(x#y)). n-ary functions are `(Fin n \u2192 Str) \u2192 Str`. `CobhamF` is Cobham's class F: base functions \u03b5, s_0, s_1, projections, #, closed under composition and limited recursion on notation (recursion equations given relationally, recursion variable last, with the standard bound |f| \u2264 |k|, k \u2208 F; the source's \"h_i \u2264 k\" is read as this standard bound). `CobhamF'` replaces the bound by |h_i(x,y,z)| \u2264 |z \u2218 k_i(x,y)| for all z, with k_0,k_1 \u2208 F'. The theorem states F' \u2286 F for every arity.",
+    "readback": "**Read-back of `fp_subset_f`.**\n\nThroughout, a *string* is a finite list of bits (elements of $\\\\{0,1\\\\}$, i.e. `Bool`), and $\\\\mathrm{Str}=\\\\{0,1\\\\}^*$. Write $|w|$ for the length of $w$, and $u \\\\mathbin{+\\\\!\\\\!+} v$ for concatenation. For $b\\\\in\\\\{0,1\\\\}$, $[b]$ is the one-bit string. For a tuple $x=(x_0,\\\\dots,x_{n-1})$ and a string $y$, $(x,y)$ denotes the $(n+1)$-tuple obtained by appending $y$ as a new last coordinate.\n\n**Auxiliary notion.** $\\\\mathrm{smash}(a,b)$ is the string obtained by concatenating $|b|$ copies of $a$ (so it is the empty string if $b=\\\\varepsilon$, even when $a$ is nonempty, and also empty if $a=\\\\varepsilon$).\n\n**Class $\\\\mathcal F$ (`CobhamF`).** For each arity $n$, $\\\\mathcal F$ is a predicate on functions $(\\\\mathrm{Str})^n\\\\to\\\\mathrm{Str}$, defined as the smallest family closed under the following rules (an inductive predicate):\n\n1. (empty) For every $n$, the constant function $x\\\\mapsto\\\\varepsilon$ is in $\\\\mathcal F$ at arity $n$.\n2. (successors) For every $n$, every bit $b$, every index $i<n$, the function $x\\\\mapsto x_i \\\\mathbin{+\\\\!\\\\!+} [b]$ is in $\\\\mathcal F$ at arity $n$. (For $n=0$ there is no such $i$.)\n3. (projections) For every $n$ and $i<n$, $x\\\\mapsto x_i$ is in $\\\\mathcal F$ at arity $n$.\n4. (smash) The binary function $(x_0,x_1)\\\\mapsto \\\\mathrm{smash}(x_0,x_1)$ is in $\\\\mathcal F$ at arity 2.\n5. (composition) If $h$ is in $\\\\mathcal F$ at arity $m$, and $g_0,\\\\dots,g_{m-1}$ are each in $\\\\mathcal F$ at arity $n$, then $x\\\\mapsto h(g_0(x),\\\\dots,g_{m-1}(x))$ is in $\\\\mathcal F$ at arity $n$ (here $m$ may be $0$).\n6. (limited recursion on notation) Let $g$ be in $\\\\mathcal F$ at arity $n$, $h_0,h_1$ (one for each bit $b$) each in $\\\\mathcal F$ at arity $n+2$, and $k$ in $\\\\mathcal F$ at arity $n+1$. If $f:(\\\\mathrm{Str})^{n+1}\\\\to\\\\mathrm{Str}$ is *any* function satisfying\n   - $f(x,\\\\varepsilon)=g(x)$ for all $x$;\n   - $f(x,\\\\,y\\\\mathbin{+\\\\!\\\\!+}[b]) = h_b\\\\big(x,\\\\,y,\\\\,f(x,y)\\\\big)$ for all $x$, $y$, and bits $b$;\n   - $|f(x,y)|\\\\le |k(x,y)|$ for all $x,y$;\n\n   then $f$ is in $\\\\mathcal F$ at arity $n+1$.\n\n**Class $\\\\mathcal F'$ (`CobhamF'`).** It is defined by exactly the same rules 1\u20135 (with $\\\\mathcal F'$ in place of $\\\\mathcal F$ throughout), and a modified rule 6. In rule 6\u2032, $g$ is in $\\\\mathcal F'$ at arity $n$, each $h_b$ is in $\\\\mathcal F'$ at arity $n+2$, and now there is a *separate* function $k_b$ for each bit $b$, each in $\\\\mathcal F'$ at arity $n+1$ (so two bound functions $k_0,k_1$ rather than one). The function $f$ is any function satisfying the same two recursion equations as above ($f(x,\\\\varepsilon)=g(x)$ and $f(x,y\\\\mathbin{+\\\\!\\\\!+}[b])=h_b(x,y,f(x,y))$), together with the bound condition on the $h_b$ rather than on $f$:\n$$|h_b(x,y,z)| \\\\le |z \\\\mathbin{+\\\\!\\\\!+} k_b(x,y)| \\\\quad\\\\text{for all } b,\\\\ x,\\\\ y,\\\\ \\\\text{and all strings } z.$$\nNo bound $|f|\\\\le|k|$ is imposed directly in rule 6\u2032.\n\n**The statement.** For every natural number $n$ (including $n=0$), every function $f:(\\\\mathrm{Str})^n\\\\to\\\\mathrm{Str}$, if $f$ belongs to $\\\\mathcal F'$ at arity $n$, then $f$ belongs to $\\\\mathcal F$ at arity $n$. In other words, the claim is the inclusion $\\\\mathcal F'\\\\subseteq\\\\mathcal F$, arity by arity. The only hypothesis is membership $f\\\\in\\\\mathcal F'$ at arity $n$; membership is not vacuous, since rules 1\u20134 supply base members.",
+    "verdict": "FAITHFUL",
+    "issues": "None. The Lean code matches the source in the following respects:\n\n- **Class F.** `CobhamF` has the standard Cobham base functions (empty string, the two successors, projections, smash) and closes them under composition and limited recursion on notation. The recursion rule bounds the length of f by the length of a single k in F, which is the usual Cobham bound.\n- **Class F\u2032.** `CobhamF'` uses the same rules except for limited recursion. There, the bound is |h_b(x,y,z)| \u2264 |z \u2218 k_b(x,y)|, with a separate k_b for each bit b. It is stated for all z, matching the source's modified bound and PV's requirement that the ITR equation hold for arbitrary z.\n- **Statement.** The theorem asserts F\u2032 \u2286 F arity by arity, with membership in F\u2032 as the only hypothesis. This is exactly the lemma.\n- **Edge cases.** Arity 0 and m = 0 composition are handled sensibly, and the hypothesis is not vacuous.\n- **Truth of the claim.** The informal proof goes through for these definitions: f has polynomially bounded length, so f \u2208 FP, and Cobham's theorem then gives f \u2208 F."
+  },
+  "sketch": {
+    "main_proof": "induction hf with\n| empty n => exact CobhamF.empty n\n| succ n b i => exact CobhamF.succ n b i\n| proj n i => exact CobhamF.proj n i\n| smash => exact CobhamF.smash\n| comp n m h g _ _ ih1 ih2 => exact CobhamF.comp n m h g ih1 ih2\n| lrec n g h k f _ _ _ e1 e2 hb ih1 ih2 ih3 =>\n  obtain \u27e8K, hK, hKb\u27e9 := cobhamF'_rec_bound n g h k f ih1 ih3 e1 e2 hb\n  exact CobhamF.lrec n g h K f ih1 ih2 hK e1 e2 hKb",
+    "lemmas": [
+      {
+        "name": "cobhamF_length_bound",
+        "statement": "theorem cobhamF_length_bound (n : \u2115) (k : (Fin n \u2192 Str) \u2192 Str) (hk : CobhamF n k) :\n    \u2203 K : (Fin n \u2192 Str) \u2192 Str, CobhamF n K \u2227 (\u2200 x, (k x).length \u2264 (K x).length) \u2227\n      (\u2200 x x' : Fin n \u2192 Str, (\u2200 i, (x i).length \u2264 (x' i).length) \u2192 (K x).length \u2264 (K x').length)",
+        "helpers": "",
+        "proof": "  induction hk with\n  | empty n =>\n    refine \u27e8fun _ => [], CobhamF.empty n, ?_, ?_\u27e9\n    \u00b7 intro x; simp\n    \u00b7 intro x x' hle; simp\n  | succ n b i =>\n    refine \u27e8fun x => x i ++ [b], CobhamF.succ n b i, ?_, ?_\u27e9\n    \u00b7 intro x; simp\n    \u00b7 intro x x' hle\n      have hi := hle i\n      simp\n      omega\n  | proj n i =>\n    refine \u27e8fun x => x i, CobhamF.proj n i, ?_, ?_\u27e9\n    \u00b7 intro x; rfl\n    \u00b7 intro x x' hle\n      have hi := hle i\n      omega\n  | smash =>\n    refine \u27e8fun x => smashStr (x 0) (x 1), CobhamF.smash, ?_, ?_\u27e9\n    \u00b7 intro x; rfl\n    \u00b7 intro x x' hle\n      have h0 := hle 0\n      have h1 := hle 1\n      unfold smashStr\n      simp [List.length_flatten, List.sum_replicate]\n      have h0' : (x 0).length \u2264 (x' 0).length := h0\n      have h1' : (x 1).length \u2264 (x' 1).length := h1\n      exact Nat.mul_le_mul h1' h0'\n  | comp n m h g h_h h_g ih_h ih_g =>\n    rcases ih_h with \u27e8K_h, hK_h, h_dom_h, h_mono_h\u27e9\n    have h_g' (j : Fin m) : \u2203 K, CobhamF n K \u2227 (\u2200 x, (g j x).length \u2264 (K x).length) \u2227\n      (\u2200 x x', (\u2200 i, (x i).length \u2264 (x' i).length) \u2192 (K x).length \u2264 (K x').length) := ih_g j\n    choose K_g hK_g h_dom_g h_mono_g using h_g'\n    refine \u27e8fun x => K_h (fun j => K_g j x), CobhamF.comp n m K_h K_g hK_h (fun j => hK_g j), ?_, ?_\u27e9\n    \u00b7 intro x\n      calc\n        (h (fun j => g j x)).length \u2264 (K_h (fun j => g j x)).length := h_dom_h (fun j => g j x)\n        _ \u2264 (K_h (fun j => K_g j x)).length := h_mono_h (fun j => g j x) (fun j => K_g j x) (fun i => h_dom_g i x)\n        _ = ((fun x => K_h (fun j => K_g j x)) x).length := rfl\n    \u00b7 intro x x' hle\n      apply h_mono_h (fun j => K_g j x) (fun j => K_g j x')\n      intro j\n      apply h_mono_g j x x'\n      exact hle\n  | lrec n g h k_bound f h_g h_h h_k_bound e1 e2 h_bound ih_g ih_h ih_k =>\n    rcases ih_k with \u27e8K_k, hK_k, h_dom_k, h_mono_k\u27e9\n    \n    \n    \n    \n    \n    \n    \n    have h_decomp : \u2200 (z : Fin (n+1) \u2192 Str), \u2203 (x : Fin n \u2192 Str) (y : Str), z = snocS x y := by\n      intro z\n      refine \u27e8fun i => z (Fin.castSucc i), z (Fin.last n), ?_\u27e9\n      ext i\n      simp [snocS, Fin.snoc, Fin.last]\n      by_cases h : (i : \u2115) < n\n      \u00b7 simp [h]\n      \u00b7 \n        have heq : (i : \u2115) = n := by\n          have hval := i.2\n          omega\n        have heq_fn : i = Fin.last n := Fin.ext heq\n        rw [heq_fn]\n        \n        \n        \n        \n        simp [Fin.last]\n    \n    have h_bound_all : \u2200 z : Fin (n+1) \u2192 Str, (f z).length \u2264 (k_bound z).length := by\n      intro z\n      rcases h_decomp z with \u27e8x, y, hz\u27e9\n      rw [hz]\n      exact h_bound x y\n    \n    \n    \n    refine \u27e8K_k, hK_k, ?_, h_mono_k\u27e9\n    intro x\n    calc\n      (f x).length \u2264 (k_bound x).length := h_bound_all x\n      _ \u2264 (K_k x).length := h_dom_k x",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "cobhamF_append",
+        "statement": "theorem cobhamF_append : CobhamF 2 (fun x => x 0 ++ x 1)",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 1 (sorry): forbidden construct: sorry\n\nsample 0 (error): forbidden construct: sorry"
+      },
+      {
+        "name": "rec_length_arith",
+        "statement": "theorem rec_length_arith (n : \u2115) (g : (Fin n \u2192 Str) \u2192 Str)\n    (h : Bool \u2192 (Fin (n+2) \u2192 Str) \u2192 Str)\n    (k : Bool \u2192 (Fin (n+1) \u2192 Str) \u2192 Str)\n    (f : (Fin (n+1) \u2192 Str) \u2192 Str)\n    (M : (Fin (n+1) \u2192 Str) \u2192 Str)\n    (e1 : \u2200 x, f (snocS x []) = g x)\n    (e2 : \u2200 x y b, f (snocS x (y ++ [b])) = h b (snocS (snocS x y) (f (snocS x y))))\n    (hb : \u2200 b x y z, (h b (snocS (snocS x y) z)).length \u2264 (z ++ k b (snocS x y)).length)\n    (hM : \u2200 x x' : Fin (n+1) \u2192 Str, (\u2200 i, (x i).length \u2264 (x' i).length) \u2192 (M x).length \u2264 (M x').length)\n    (hgM : \u2200 x y, (g x).length \u2264 (M (snocS x y)).length)\n    (hkM : \u2200 b x y, (k b (snocS x y)).length \u2264 (M (snocS x y)).length) :\n    \u2200 x y, (f (snocS x y)).length \u2264 (y.length + 1) * (M (snocS x y)).length",
+        "helpers": "",
+        "proof": "  \n  intro x\n  intro y\n  \n  \n  \n  \n  \n  \n  \n  \n  \n  \n  \n  have h_main : \u2200 (L : \u2115), (\u2200 (y' : Str), y'.length = L \u2192 \u2200 (x' : Fin n \u2192 Str), \n      (f (snocS x' y')).length \u2264 (y'.length + 1) * (M (snocS x' y')).length) := by\n    intro L\n    induction L using Nat.strong_induction_on with\n    | h L ih =>\n      intro y' hlen x'\n      \n      by_cases hLzero : L = 0\n      \u00b7 \n        have hy'_nil : y' = [] := List.length_eq_zero_iff.mp (hlen.trans hLzero)\n        subst hy'_nil\n        rw [e1 x']\n        simpa [mul_one] using hgM x' []\n      \u00b7 \n        have hLpos : 0 < L := Nat.pos_of_ne_zero hLzero\n        have hy'_nonempty : y' \u2260 [] := by\n          intro h_eq\n          rw [h_eq, List.length_nil] at hlen\n          exact hLzero hlen.symm\n        have h_decomp : y' = y'.dropLast ++ [y'.getLast hy'_nonempty] :=\n          (List.dropLast_append_getLast hy'_nonempty).symm\n        rw [h_decomp]\n        \n        rw [e2 x' y'.dropLast (y'.getLast hy'_nonempty)]\n        set y'' := y'.dropLast with hy''_def\n        set b := y'.getLast hy'_nonempty with hb_def\n        \n        \n        have hbound : (h b (snocS (snocS x' y'') (f (snocS x' y'')))).length \u2264\n            (f (snocS x' y'')).length + (k b (snocS x' y'')).length := by\n          have htemp := hb b x' y'' (f (snocS x' y''))\n          \n          \n          \n          \n          have h_append : (f (snocS x' y'') ++ k b (snocS x' y'')).length = \n              (f (snocS x' y'')).length + (k b (snocS x' y'')).length := by\n            simp\n          rw [h_append] at htemp\n          exact htemp\n        \n        \n        have hy''_len_lt_L : y''.length < L := by\n          \n          \n          \n          have hlen_total : y'.length = L := hlen\n          have hlen_append : (y'' ++ [b]).length = y''.length + 1 := by simp\n          rw [show y' = y'' ++ [b] from h_decomp] at hlen_total\n          rw [hlen_append] at hlen_total\n          omega\n        \n        have ih_y'' := ih y''.length hy''_len_lt_L y'' rfl x'\n        \n        \n        have hk_bound : (k b (snocS x' y'')).length \u2264 (M (snocS x' y'')).length := hkM b x' y''\n        \n        \n        have h_sum : (f (snocS x' y'')).length + (k b (snocS x' y'')).length \u2264\n            (y''.length + 1) * (M (snocS x' y'')).length + (M (snocS x' y'')).length := by\n          nlinarith\n        \n        have h_eq' : (y''.length + 1) * (M (snocS x' y'')).length + (M (snocS x' y'')).length =\n            (y''.length + 2) * (M (snocS x' y'')).length := by\n          ring\n        \n        rw [h_eq'] at h_sum\n        \n        \n        have h_mono : (M (snocS x' y'')).length \u2264 (M (snocS x' (y'' ++ [b]))).length := by\n          apply hM (snocS x' y'') (snocS x' (y'' ++ [b]))\n          intro i\n          refine Fin.lastCases ?_ ?_ i\n          \u00b7 simp [snocS]\n          \u00b7 simp [snocS]\n        \n        have h_len_append : (y'' ++ [b]).length = y''.length + 1 := by simp\n        \n        \n        have h_final : (y''.length + 2) * (M (snocS x' y'')).length \u2264\n            ((y'' ++ [b]).length + 1) * (M (snocS x' (y'' ++ [b]))).length := by\n          rw [h_len_append, show ((y''.length + 1) + 1) = (y''.length + 2) by omega]\n          nlinarith\n        \n        have h_total : (h b (snocS (snocS x' y'') (f (snocS x' y'')))).length \u2264\n            ((y'' ++ [b]).length + 1) * (M (snocS x' (y'' ++ [b]))).length := by\n          omega\n        \n        exact h_total\n  \n  \n  exact h_main y.length y rfl x",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "cobhamF_smash_bound",
+        "statement": "theorem cobhamF_smash_bound (n : \u2115) (M : (Fin (n+1) \u2192 Str) \u2192 Str) (hM : CobhamF (n+1) M) :\n    \u2203 K : (Fin (n+1) \u2192 Str) \u2192 Str, CobhamF (n+1) K \u2227\n      \u2200 x y, (y.length + 1) * (M (snocS x y)).length \u2264 (K (snocS x y)).length",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 1 (error): forbidden construct: sorry\n\nsample 0 (error): forbidden construct: sorry"
+      },
+      {
+        "name": "cobhamF'_rec_bound",
+        "statement": "theorem cobhamF'_rec_bound (n : \u2115) (g : (Fin n \u2192 Str) \u2192 Str)\n    (h : Bool \u2192 (Fin (n+2) \u2192 Str) \u2192 Str)\n    (k : Bool \u2192 (Fin (n+1) \u2192 Str) \u2192 Str)\n    (f : (Fin (n+1) \u2192 Str) \u2192 Str)\n    (hg : CobhamF n g) (hk : \u2200 b, CobhamF (n+1) (k b))\n    (e1 : \u2200 x, f (snocS x []) = g x)\n    (e2 : \u2200 x y b, f (snocS x (y ++ [b])) = h b (snocS (snocS x y) (f (snocS x y))))\n    (hb : \u2200 b x y z, (h b (snocS (snocS x y) z)).length \u2264 (z ++ k b (snocS x y)).length) :\n    \u2203 K : (Fin (n+1) \u2192 Str) \u2192 Str, CobhamF (n+1) K \u2227\n      \u2200 x y, (f (snocS x y)).length \u2264 (K (snocS x y)).length",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 0 (sorry): forbidden construct: sorry\n\nsample 1 (sorry): forbidden construct: sorry"
+      }
+    ]
+  },
+  "wall_seconds": 19429.2,
+  "phase_seconds": {
+    "formalize": 56.7,
+    "sketch": 67.5,
+    "prove": 19313.8
+  },
+  "calls_by_role": {
+    "captain": 4,
+    "auditor": 1,
+    "solver": 15
+  },
+  "usage_by_model": {
+    "claude-sonnet-5-5": {
+      "input_tokens": 10,
+      "output_tokens": 12960,
+      "cost_usd": 0.20963199999999996
+    }
+  },
+  "lean_attempt_files": 6
+}

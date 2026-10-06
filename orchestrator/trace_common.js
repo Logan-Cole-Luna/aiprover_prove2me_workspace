@@ -240,7 +240,14 @@ const TEX_MACROS = {
   "\\TR": "\\mathrm{TR}", "\\ITR": "\\mathrm{ITR}", "\\M": "\\mathcal{M}",
   "\\FP": "\\mathsf{FP}", "\\calF": "\\mathcal{F}",
 };
-const MATH_SPAN = /\$\$([\s\S]+?)\$\$|\\begin\{equation\*?\}([\s\S]+?)\\end\{equation\*?\}|\\\[([\s\S]+?)\\\]|\$([^$\n]+?)\$/g;
+// Display environments come first, so that inline math inside them (e.g. in
+// \intertext) is rendered as part of the environment.
+const MATH_SPAN = new RegExp([
+  String.raw`\\begin\{(equation|align|gather|alignat|multline|eqnarray|prooftree)(\*?)\}([\s\S]+?)\\end\{\1\2\}`,
+  String.raw`\$\$([\s\S]+?)\$\$`, String.raw`\\\[([\s\S]+?)\\\]`, String.raw`\$((?:[^$\n]|\n(?![ \t]*\n))+?)\$`,
+].join("|"));
+// KaTeX lacks these environments; each is rendered as the closest one it has.
+const KATEX_ENVIRONMENT = { multline: "gather", eqnarray: "align" };
 
 function texHTML(tex, display) {
   if (!window.katex) return `<code>${escapeHTML(display ? tex : "$" + tex + "$")}</code>`;
@@ -254,21 +261,97 @@ function texHTML(tex, display) {
   }
 }
 
+// Index just past the group that opens at `text[open]` ("{"), or -1.
+function closingBrace(text, open) {
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    if (text[i] === "\\") { i++; continue; }
+    if (text[i] === "{") depth++;
+    else if (text[i] === "}" && --depth === 0) return i + 1;
+  }
+  return -1;
+}
+
+// A display environment; \intertext{...}, which KaTeX lacks, splits it into
+// separate environments with the text between them.
+function environmentHTML(name, star, body) {
+  if (name === "prooftree") return `<pre class="tex"><code>${escapeHTML(body.trim())}</code></pre>`;
+  const environment = (KATEX_ENVIRONMENT[name] || name) + star;
+  const render = rows => rows.trim()
+    ? texHTML(`\\begin{${environment}}${rows.replace(/\\label\{[^}]*\}/g, "")}\\end{${environment}}`, true)
+    : "";
+  let out = "", start = 0, at;
+  while ((at = body.indexOf("\\intertext{", start)) !== -1) {
+    const end = closingBrace(body, at + "\\intertext".length);
+    if (end === -1) break;
+    out += render(body.slice(start, at).replace(/\\\\\s*$/, ""))
+      + `<span class="intertext">${mathHTML(body.slice(at + "\\intertext{".length, end - 1))}</span>`;
+    start = end;
+  }
+  return out + render(body.slice(start));
+}
+
 function inlineCode(text) {
   return escapeHTML(text).replace(/`([^`\n]+)`/g, "<code>$1</code>");
 }
 
-// Prose containing $...$ / $$...$$ / \begin{equation} math and `code`.
+// Text-mode LaTeX of an informal statement (already HTML-escaped), as HTML:
+// emphasis, sectioning, lists, theorem environments and spacing commands.
+const THEOREM_ENVIRONMENTS = "theorem|lemma|proposition|corollary|definition|remark|example|claim|conjecture";
+function textModeHTML(html) {
+  const replaceGroups = (text, command, wrap) => {
+    let out = "", start = 0, at;
+    while ((at = text.indexOf(command + "{", start)) !== -1) {
+      const end = closingBrace(text, at + command.length);
+      if (end === -1) break;
+      out += text.slice(start, at) + wrap(textModeHTML(text.slice(at + command.length + 1, end - 1)));
+      start = end;
+    }
+    return out + text.slice(start);
+  };
+  for (const [command, wrap] of [
+    ["\\textbf", s => `<strong>${s}</strong>`], ["\\emph", s => `<em>${s}</em>`],
+    ["\\textit", s => `<em>${s}</em>`], ["\\texttt", s => `<code>${s}</code>`],
+    ["\\paragraph", s => `<strong>${s}</strong>`], ["\\subparagraph", s => `<strong>${s}</strong>`],
+    ["\\marginnote", s => ` (${s})`],
+  ]) html = replaceGroups(html, command, wrap);
+  return html
+    .replace(/\\label\{[^{}]*\}\s*/g, "")
+    .replace(/\\(eq)?ref\{([^{}]*)\}/g, (_, eq, label) => eq ? `(${label})` : label)
+    .replace(/\\textcolor\{[^{}]*\}\{([^{}]*)\}/g, "$1")
+    .replace(/\{\\(it|em|sl)\s+([^{}]*)\}/g, "<em>$2</em>")
+    .replace(/\{\\bf\s+([^{}]*)\}/g, "<strong>$1</strong>")
+    .replace(/\\(begingroup|endgroup|allowdisplaybreaks|noindent|medskip|smallskip|bigskip|newline)\b\s*/g, "")
+    .replace(/\s*\\begin\{(itemize|compactitem|enumerate|compactenum)\}\s*/g, "<ul>")
+    .replace(/\s*\\end\{(itemize|compactitem|enumerate|compactenum)\}\s*/g, "</ul>")
+    .replace(/\s*\\item\s*/g, "<li>")
+    .replace(new RegExp(String.raw`\\begin\{(${THEOREM_ENVIRONMENTS})\}(?:\[([^\]]*)\])?\s*`, "g"),
+             (_, name, note) => `<strong>${name[0].toUpperCase() + name.slice(1)}${note ? ` (${note})` : ""}.</strong> `)
+    .replace(new RegExp(String.raw`\s*\\end\{(${THEOREM_ENVIRONMENTS})\}`, "g"), "")
+    .replace(/\\begin\{proof\}\s*/g, "<em>Proof.</em> ")
+    .replace(/\s*\\end\{proof\}/g, " ∎")
+    .replace(/\\\\(\[[^\]]*\])?[ \t]*(\n?)/g, (_, skip, newline) => newline || "\n")
+    .replace(/(\S)~(?=\S)/g, "$1&nbsp;");
+}
+
+// Prose containing LaTeX math (inline, display and align-like environments),
+// text-mode LaTeX and `code`. Math and code are set aside while the text-mode
+// commands, which may span them, are converted.
 function mathHTML(text) {
-  let out = "", last = 0, match;
-  MATH_SPAN.lastIndex = 0;
-  while ((match = MATH_SPAN.exec(text))) {
-    out += inlineCode(text.slice(last, match.index));
-    const display = match[4] === undefined;
-    out += texHTML(match[1] ?? match[2] ?? match[3] ?? match[4], display);
-    last = MATH_SPAN.lastIndex;
+  const pieces = [];
+  const keep = html => `\u0000${pieces.push(html) - 1}\u0000`;
+  // A fresh pattern per call: \intertext renders its text with a nested call.
+  const span = new RegExp(MATH_SPAN.source, "g");
+  let prose = "", last = 0, match;
+  while ((match = span.exec(text))) {
+    prose += text.slice(last, match.index);
+    prose += keep(match[1] ? environmentHTML(match[1], match[2], match[3])
+                           : texHTML(match[4] ?? match[5] ?? match[6], match[6] === undefined));
+    last = span.lastIndex;
   }
-  return out + inlineCode(text.slice(last));
+  prose += text.slice(last);
+  const html = escapeHTML(prose.replace(/`([^`\n]+)`/g, (_, code) => keep(`<code>${escapeHTML(code)}</code>`)));
+  return textModeHTML(html).replace(/\u0000(\d+)\u0000/g, (_, index) => pieces[index]);
 }
 
 // Minimal Markdown for the playbook-derived system prompts.
@@ -339,6 +422,8 @@ const EVENT_TEXT = {
   lemma_reused: "Proved lemma reused",
   lemma_handback: "Lemma handed back to the captain",
   final_verification: "Final verification",
+  final_review: "Independent review",
+  report: "LaTeX report",
 };
 
 function stepTitle(step) {
@@ -377,6 +462,10 @@ function stepResult(step) {
     return `<span class="pill ${step.checks?.verified ? "ok" : "fail"}">${step.checks?.verified ? "verified" : "not verified"}</span>`;
   }
   if (step.event === "lemma_proved") return `<span class="pill ok">${escapeHTML(step.lemma)}</span>`;
+  if (step.event === "final_review") {
+    return `<span class="pill ${step.verdict === "FAITHFUL" ? "ok" : "fail"}">${escapeHTML(step.verdict)}</span>`;
+  }
+  if (step.event === "report") return `<span class="pill ${step.pdf ? "ok" : "fail"}">${step.pdf ? "PDF" : "no PDF"}</span>`;
   return "";
 }
 
@@ -703,5 +792,6 @@ function renderHeader() {
   document.getElementById("run").textContent = TRACE.run_id;
   document.getElementById("models").textContent = `${TRACE.models?.orchestrator} + ${TRACE.models?.worker}`;
   const verified = outcome.checks?.verified;
-  document.getElementById("status").innerHTML = `<span class="pill ${verified ? "ok" : outcome.status ? "fail" : "neutral"}">${verified ? "proved · verified" : escapeHTML(outcome.status || "in progress")}</span>`;
+  const reviewed = outcome.status === "proved";
+  document.getElementById("status").innerHTML = `<span class="pill ${reviewed ? "ok" : verified ? "warn" : outcome.status ? "fail" : "neutral"}">${reviewed ? "proved · verified · reviewed" : verified ? `verified · ${escapeHTML(outcome.status || "review pending")}` : escapeHTML(outcome.status || "in progress")}</span>`;
 }

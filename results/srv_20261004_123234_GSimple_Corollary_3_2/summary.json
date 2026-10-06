@@ -1,0 +1,163 @@
+{
+  "run_id": "srv_20261004_123234_GSimple_Corollary_3_2",
+  "uuid": "GSimple_Corollary_3_2",
+  "slug": "gsimple_x_inverse",
+  "config": {
+    "agents": {
+      "captain": {
+        "backend": "claude_cli",
+        "model": "claude-sonnet-5-5",
+        "timeout": 2400
+      },
+      "auditor": {
+        "backend": "claude_cli",
+        "model": "claude-sonnet-5-5"
+      },
+      "reviewer": {
+        "backend": "claude_cli",
+        "model": "claude-opus-5-5",
+        "timeout": 2400,
+        "effort": "high",
+        "max_output_tokens": 128000
+      },
+      "writer": {
+        "backend": "claude_cli",
+        "model": "claude-opus-5-5",
+        "timeout": 2400,
+        "effort": "high",
+        "max_output_tokens": 128000
+      },
+      "solver": {
+        "backend": "aiprover",
+        "model": "aiprover",
+        "config": "aiprover/aiprover_vista_logged.toml",
+        "cli": "AIProver/AIProver_plugin/bin/aiprover",
+        "timeout": 5400,
+        "max_turns": 200
+      }
+    },
+    "workers": 2,
+    "max_repairs": 4,
+    "max_replans": 1,
+    "max_audit_rounds": 2,
+    "lean_parallel": 4,
+    "lean_timeout": 300,
+    "max_claude_calls": 10,
+    "aiprover_lemma_concurrency": 4,
+    "aiprover_attempts_per_lemma": 1,
+    "aiprover_session_slots": 0,
+    "aiprover_handback_after": 0,
+    "final_claude_calls": 8
+  },
+  "status": "proved",
+  "formalization": {
+    "definitions": "namespace GM\n\nnoncomputable section\n\n/-- Index set E = {(\u2113,j,k) | 1 \u2264 k \u2264 c(j), 0 \u2264 \u2113 < j}, encoded as triples (\u2113,j,k). -/\ndef Idx (c : \u2115 \u2192 \u2115) : Type := {t : \u2115 \u00d7 \u2115 \u00d7 \u2115 // t.1 < t.2.1 \u2227 1 \u2264 t.2.2 \u2227 t.2.2 \u2264 c t.2.1}\n\nvariable {c : \u2115 \u2192 \u2115}\n\ndef Idx.l (e : Idx c) : \u2115 := e.1.1\ndef Idx.j (e : Idx c) : \u2115 := e.1.2.1\ndef Idx.k (e : Idx c) : \u2115 := e.1.2.2\n\n/-- The generating symbols \ud835\udcb3. -/\ninductive Gen (c : \u2115 \u2192 \u2115) : Type\n  | H1 (s : \u2102\u02e3) : Gen c\n  | H2 (s : \u2102\u02e3) : Gen c\n  | Xm (u : \u2102) : Gen c\n  | Ym (u : \u2102) : Gen c\n  | X (e : Idx c) (u : \u2102) : Gen c\n  | Y (e : Idx c) (u : \u2102) : Gen c\n\ndef fH1 (s : \u2102\u02e3) : FreeGroup (Gen c) := FreeGroup.of (Gen.H1 s)\ndef fH2 (s : \u2102\u02e3) : FreeGroup (Gen c) := FreeGroup.of (Gen.H2 s)\ndef fXm (u : \u2102) : FreeGroup (Gen c) := FreeGroup.of (Gen.Xm u)\ndef fYm (u : \u2102) : FreeGroup (Gen c) := FreeGroup.of (Gen.Ym u)\ndef fX (e : Idx c) (u : \u2102) : FreeGroup (Gen c) := FreeGroup.of (Gen.X e u)\ndef fY (e : Idx c) (u : \u2102) : FreeGroup (Gen c) := FreeGroup.of (Gen.Y e u)\n\n/-- c_{\u2113 j} = (-1)^{\u2113+1} C(j-1,\u2113) (\u2113+1)(j-\u2113). -/\ndef cc (e : Idx c) : \u2102 :=\n  ((-1 : \u2102) ^ (e.l + 1)) * (((e.j - 1).choose e.l : \u2115) : \u2102) * ((e.l : \u2102) + 1) * ((e.j - e.l : \u2115) : \u2102)\n\n/-- (Re:0) -/\ndef wm (s : \u2102\u02e3) : FreeGroup (Gen c) := fXm (s : \u2102) * fYm (-((s : \u2102)\u207b\u00b9)) * fXm (s : \u2102)\n\n/-- (Im:0) -/\ndef wt (e : Idx c) (s : \u2102\u02e3) : FreeGroup (Gen c) :=\n  fX e (s : \u2102) * fY e (-((s : \u2102)\u207b\u00b9) / cc e) * fX e (s : \u2102)\n\n/-- commutator (a,b) = a b a\u207b\u00b9 b\u207b\u00b9 -/\ndef comm (a b : FreeGroup (Gen c)) : FreeGroup (Gen c) := a * b * a\u207b\u00b9 * b\u207b\u00b9\n\n/-- conjugation a b a\u207b\u00b9 -/\ndef conj (a b : FreeGroup (Gen c)) : FreeGroup (Gen c) := a * b * a\u207b\u00b9\n\n/-- The set of defining relators; each constructor says `lhs = rhs` via the word `lhs * rhs\u207b\u00b9`. -/\ninductive Rl (c : \u2115 \u2192 \u2115) : FreeGroup (Gen c) \u2192 Prop\n  | h1a (s t : \u2102\u02e3) : Rl c (fH1 s * fH1 t * (fH1 (s * t))\u207b\u00b9)\n  | h1b (s t : \u2102\u02e3) : Rl c (fH2 s * fH2 t * (fH2 (s * t))\u207b\u00b9)\n  | h2 (s t : \u2102\u02e3) : Rl c (fH1 s * fH2 t * (fH2 t * fH1 s)\u207b\u00b9)\n  | re1a (u v : \u2102) : Rl c (fXm u * fXm v * (fXm (u + v))\u207b\u00b9)\n  | re1b (u v : \u2102) : Rl c (fYm u * fYm v * (fYm (u + v))\u207b\u00b9)\n  | re2 (s t : \u2102\u02e3) :\n      Rl c (fYm (-(t : \u2102)) * fXm (s : \u2102) * fYm (t : \u2102) *\n        (fXm (-((t : \u2102)\u207b\u00b9)) * fYm (-((t : \u2102) ^ 2 * (s : \u2102))) * fXm ((t : \u2102)\u207b\u00b9))\u207b\u00b9)\n  | re3 (s : \u2102\u02e3) : Rl c (wm s * wm 1 * (fH1 (-s) * fH2 (-s\u207b\u00b9))\u207b\u00b9)\n  | re4a (u : \u2102) : Rl c (conj (wm 1) (fXm u) * (fYm (-u))\u207b\u00b9)\n  | re4b (u : \u2102) : Rl c (conj (wm 1) (fYm u) * (fXm (-u))\u207b\u00b9)\n  | re5a (s : \u2102\u02e3) : Rl c (conj (wm 1) (fH1 s) * (fH2 s)\u207b\u00b9)\n  | re5b (s : \u2102\u02e3) : Rl c (conj (wm 1) (fH2 s) * (fH1 s)\u207b\u00b9)\n  | re6a (s : \u2102\u02e3) (u : \u2102) : Rl c (conj (fH1 s) (fXm u) * (fXm ((s : \u2102) * u))\u207b\u00b9)\n  | re6b (s : \u2102\u02e3) (u : \u2102) : Rl c (conj (fH2 s) (fXm u) * (fXm ((s : \u2102)\u207b\u00b9 * u))\u207b\u00b9)\n  | re6c (s : \u2102\u02e3) (u : \u2102) : Rl c (conj (fH1 s) (fYm u) * (fYm ((s : \u2102)\u207b\u00b9 * u))\u207b\u00b9)\n  | re6d (s : \u2102\u02e3) (u : \u2102) : Rl c (conj (fH2 s) (fYm u) * (fYm ((s : \u2102) * u))\u207b\u00b9)\n  | im1a (e : Idx c) (u v : \u2102) : Rl c (fX e u * fX e v * (fX e (u + v))\u207b\u00b9)\n  | im1b (e : Idx c) (u v : \u2102) : Rl c (fY e u * fY e v * (fY e (u + v))\u207b\u00b9)\n  | im2 (e : Idx c) (s t : \u2102\u02e3) :\n      Rl c (fY e (-(t : \u2102)) * fX e (s : \u2102) * fY e (t : \u2102) *\n        (fX e (-((t : \u2102)\u207b\u00b9) / cc e) * fY e (-(cc e) * (t : \u2102) ^ 2 * (s : \u2102)) *\n          fX e ((t : \u2102)\u207b\u00b9 / cc e))\u207b\u00b9)\n  | im3 (e : Idx c) (s : \u2102\u02e3) :\n      Rl c (wt e (s ^ ((e.l + 1) * (e.j - e.l))) * wt e 1 *\n        (fH1 ((-s) ^ (e.j - e.l)) * fH2 ((-s) ^ (e.l + 1)))\u207b\u00b9)\n  | im4a (e : Idx c) (u : \u2102) : Rl c (conj (wt e 1) (fX e u) * (fY e (-u / cc e))\u207b\u00b9)\n  | im4b (e : Idx c) (u : \u2102) : Rl c (conj (wt e 1) (fY e u) * (fX e (-(cc e) * u))\u207b\u00b9)\n  | im5a (e : Idx c) (s : \u2102\u02e3) :\n      Rl c (conj (wt e 1) (fH1 (s ^ (e.j - e.l))) * (fH2 (s ^ (-((e.l : \u2124) + 1))))\u207b\u00b9)\n  | im5b (e : Idx c) (s : \u2102\u02e3) :\n      Rl c (conj (wt e 1) (fH2 (s ^ (e.l + 1))) * (fH1 (s ^ (-((e.j : \u2124) - e.l))))\u207b\u00b9)\n  | im6a (e : Idx c) (s : \u2102\u02e3) (u : \u2102) :\n      Rl c (conj (fH1 s) (fX e u) * (fX e ((s : \u2102) ^ (e.l + 1) * u))\u207b\u00b9)\n  | im6b (e : Idx c) (s : \u2102\u02e3) (u : \u2102) :\n      Rl c (conj (fH2 s) (fX e u) * (fX e ((s : \u2102) ^ (e.j - e.l) * u))\u207b\u00b9)\n  | im6c (e : Idx c) (s : \u2102\u02e3) (u : \u2102) :\n      Rl c (conj (fH1 s) (fY e u) * (fY e ((s : \u2102) ^ (-((e.l : \u2124) + 1)) * u))\u207b\u00b9)\n  | im6d (e : Idx c) (s : \u2102\u02e3) (u : \u2102) :\n      Rl c (conj (fH2 s) (fY e u) * (fY e ((s : \u2102) ^ (-((e.j : \u2124) - e.l)) * u))\u207b\u00b9)\n  | u1a (e : Idx c) (h : e.l + 1 = e.j) (u v : \u2102) : Rl c (comm (fXm u) (fX e v))\n  | u1b (e : Idx c) (h : e.l + 1 = e.j) (u v : \u2102) : Rl c (comm (fYm u) (fY e v))\n  | u1c (e : Idx c) (h : e.l = 0) (u v : \u2102) : Rl c (comm (fYm u) (fX e v))\n  | u1d (e : Idx c) (h : e.l = 0) (u v : \u2102) : Rl c (comm (fXm u) (fY e v))\n  | u2 (e f : Idx c) (h : e.j \u2260 f.j \u2228 e.k \u2260 f.k \u2228 1 < (((e.l : \u2124) - f.l)).natAbs) (u v : \u2102) :\n      Rl c (comm (fX e u) (fY f v))\n  | u3a (e f : Idx c) (k : \u2115) (he : e.1 = (1, 2, k)) (hf : f.1 = (0, 2, k)) (u v : \u2102) :\n      Rl c (comm (fX e u) (fY f v) * (fXm (u * v))\u207b\u00b9)\n  | u3b (e f : Idx c) (k : \u2115) (he : e.1 = (0, 2, k)) (hf : f.1 = (1, 2, k)) (u v : \u2102) :\n      Rl c (comm (fX e u) (fY f v) * (fYm (u * v))\u207b\u00b9)\n  | u4a (e e' : Idx c) (h : e'.1 = (e.j - 1 - e.l, e.j, e.k)) (u : \u2102) :\n      Rl c (conj (wm 1) (fX e u) * (fX e' ((-1 : \u2102) ^ (e.j - e.l - 1) * u))\u207b\u00b9)\n  | u4b (e e' : Idx c) (h : e'.1 = (e.j - 1 - e.l, e.j, e.k)) (u : \u2102) :\n      Rl c (conj (wm 1) (fY e u) * (fY e' ((-1 : \u2102) ^ (e.j - e.l - 1) * u))\u207b\u00b9)\n\n/-- The group G(\ud835\udd2a) = \u27e8\ud835\udcb3 | \u211b\u27e9. -/\nabbrev G (c : \u2115 \u2192 \u2115) : Type := PresentedGroup {r : FreeGroup (Gen c) | Rl c r}\n\nend\n\nend GM",
+    "preamble": "",
+    "theorem_name": "gsimple_x_inverse",
+    "signature": " (c : \u2115 \u2192 \u2115) (u : \u2102) :\n    ((PresentedGroup.of (GM.Gen.Xm (c := c) u) : GM.G c))\u207b\u00b9 =\n      (PresentedGroup.of (GM.Gen.Xm (c := c) (-u)) : GM.G c) ",
+    "notes": "The previous errors came from the relator predicate: inside the inductive, constructors omitted the parameter `c`, and the name `Rel` clashed with Mathlib's `Rel`. It is now `Rl c ...` with `c` explicit everywhere. The definitions sit in a `noncomputable section` to avoid the compiler errors on complex inverse/division. The index set E is the subtype Idx c, with c : \u2115 \u2192 \u2115 a parameter. The generators \ud835\udcb3 are the inductive Gen c. Each relation (Re/Im/U) is a constructor of Rl, stated as the relator lhs\u00b7rhs\u207b\u00b9 in the free group. G c is the presented group, i.e. F(\ud835\udcb3) modulo the normal closure of the relators. The theorem states X_{-1}(u)\u207b\u00b9 = X_{-1}(-u) in G c for every u : \u2102.",
+    "readback": "**Read-back of `gsimple_x_inverse`.**\n\nFix an arbitrary function $c:\\\\mathbb{N}\\\\to\\\\mathbb{N}$ and an arbitrary complex number $u\\\\in\\\\mathbb{C}$. (Both are universally quantified; $c$ may be anything, including the zero function, and $u$ may be $0$.)\n\nThe group $G(c)$ is defined by generators and relations. The generators are the following formal symbols:\n\n- $H_1(s)$ and $H_2(s)$ for each $s\\\\in\\\\mathbb{C}^\\\\times$;\n- $X_-(u)$ and $Y_-(u)$ for each $u\\\\in\\\\mathbb{C}$;\n- $X_e(u)$ and $Y_e(u)$ for each $u\\\\in\\\\mathbb{C}$ and each index $e=(\\\\ell,j,k)\\\\in\\\\mathbb{N}^3$ satisfying $\\\\ell<j$ and $1\\\\le k\\\\le c(j)$. For a $c$ that is zero at all $j$, no such index exists, so these generators are absent.\n\n$G(c)$ is the quotient of the free group on these generators by the normal subgroup generated by a fixed list of relator families. Among these are:\n\n- additivity: $X_-(u)X_-(v)=X_-(u+v)$ and $Y_-(u)Y_-(v)=Y_-(u+v)$;\n- the analogous additivity relations for $X_e$ and $Y_e$;\n- the multiplicativity relations of $H_1$ and $H_2$;\n- the commutation, conjugation, and Weyl-type relations (the $w$-type relations, such as $X_-(s)Y_-(-s^{-1})X_-(s)$ expressions, and the relations $u1$\u2013$u4$ and $re/im$ families) linking these generators.\n\nWrite $\\\\bar g$ for the image in $G(c)$ of a generator $g$.\n\n**Statement.** In $G(c)$, the inverse of the image $\\\\overline{X_-(u)}$ of the generator $X_-(u)$ equals the image $\\\\overline{X_-(-u)}$ of the generator $X_-(-u)$:\n\n$$\\\\big(\\\\overline{X_-(u)}\\\\big)^{-1}=\\\\overline{X_-(-u)}.$$\n\nNo hypotheses are imposed beyond $c$ and $u$ being arbitrary. The claim is an equality of elements of the presented group $G(c)$, that is, equality modulo the defining relations. It is not an equality of words in the free group, where $X_-(u)^{-1}$ and $X_-(-u)$ are distinct elements.",
+    "verdict": "FAITHFUL",
+    "issues": "None. I checked the Lean definitions against the source relation by relation.\n\n- **Index set and constants.** `Idx` encodes E as triples with \u2113<j and 1\u2264k\u2264c(j). The constant `cc` matches c_{\u2113j}, and the natural-number subtractions j\u2212\u2113 and j\u22121 are safe because \u2113<j.\n- **Generators.** `Gen` has H\u2081(s), H\u2082(s) for s\u2208\u2102\u02e3, X\u208b\u2081(u), Y\u208b\u2081(u), and X_e(u), Y_e(u), as in the source.\n- **Relators.** Every relation family matches the source in exponents, arguments and ordering: Re:0\u20136, Im:0\u20136, U:1a\u2013d, U:2, U:3a,b and U:4a,b. Each relator is lhs\u00b7rhs\u207b\u00b9 or a commutator (a,b)=aba\u207b\u00b9b\u207b\u00b9, as the source requires.\n- **U:2.** The side condition (j\u2260p or k\u2260q or |\u2113\u2212m|>1) is encoded faithfully.\n- **Group.** `G c` is `PresentedGroup` over the set of these relators, i.e. F(\ud835\udcb3) modulo their normal closure.\n- **Statement.** The theorem says (X\u208b\u2081(u))\u207b\u00b9 = X\u208b\u2081(\u2212u) in G(c). It is quantified over arbitrary c and u, which the formalization note allows. The corollary does not need c(2)\u22651."
+  },
+  "checks": {
+    "compiles": true,
+    "no_sorry": true,
+    "standard_axioms_only": true,
+    "axioms": [
+      "propext",
+      "Classical.choice",
+      "Quot.sound"
+    ],
+    "errors": [],
+    "module_build": true,
+    "statement_matches": true,
+    "verified": true
+  },
+  "review": {
+    "definitions_review": "I checked every Lean definition against the source setting.\n\n\\begin{itemize}\n\\item \\leanname{Idx} encodes $E$ as triples $(\\ell,j,k)$ with $\\ell<j$ and $1\\le k\\le c(j)$. Here $c:\\mathbb{N}\\to\\mathbb{N}$ is a parameter, which the formalization note permits. If $j=0$ there is no admissible $\\ell$, so including $0$ in $\\mathbb{N}$ adds nothing.\n\\item \\leanname{Gen} is the symbol set $\\mathcal{X}$. $H_1,H_2$ are indexed by units of $\\mathbb{C}$, and the unipotent symbols by $u\\in\\mathbb{C}$ and $e\\in E$.\n\\item \\leanname{cc} is $c_{\\ell j}=(-1)^{\\ell+1}\\binom{j-1}{\\ell}(\\ell+1)(j-\\ell)$. The natural-number subtractions $j-1$ and $j-\\ell$ are exact because $\\ell<j$. The value is nonzero, so the divisions by \\leanname{cc} are genuine.\n\\item \\leanname{wm} and \\leanname{wt} match (Re:0) and (Im:0).\n\\item \\leanname{comm} is $aba^{-1}b^{-1}$, as in the source, and \\leanname{conj} is $aba^{-1}$.\n\\item Each constructor of \\leanname{Rl} encodes $\\mathrm{lhs}=\\mathrm{rhs}$ as $\\mathrm{lhs}\\cdot\\mathrm{rhs}^{-1}$. I compared them one by one with (H:1a) through (U:4b). Signs, exponents and the integer-power casts in (Im:5), (Im:6c) and (Im:6d) are correct. Side conditions are correct: $\\ell+1=j$ for (U:1a,b); $\\ell=0$ for (U:1c,d); the disjunction for (U:2); the indices $(1,2,k),(0,2,k)$ for (U:3a,b); the index $(j-1-\\ell,j,k)$ with sign $(-1)^{j-\\ell-1}$ for (U:4a,b).\n\\item \\leanname{G} is \\leanname{PresentedGroup} on these relators, i.e.\\ $F(\\mathcal{X})/N_\\mathcal{R}$.\n\\end{itemize}\n\nI found no discrepancy.",
+    "statement_review": "The target states that for every $c:\\mathbb{N}\\to\\mathbb{N}$ and every $u\\in\\mathbb{C}$, $X_{-1}(u)^{-1}=X_{-1}(-u)$ in $G(c)$.\n\n\\begin{itemize}\n\\item The source fixes $c$ to be the coefficients of $J$. Instantiating the Lean theorem at that $c$ recovers the source statement exactly, so nothing extra must be supplied.\n\\item No hypothesis such as $c(2)\\ge 1$ is needed here, and none is assumed.\n\\item The conclusion is an equality in the presented group. It is not vacuous: it is exactly the corollary's claim.\n\\end{itemize}",
+    "proof_review": "The proof has three auxiliary lemmas and a final step.\n\n\\begin{itemize}\n\\item \\leanname{mk\\_rel\\_eq\\_one\\_in\\_G} is unused.\n\\item \\leanname{Xm\\_add\\_in\\_G} derives $X_{-1}(u)X_{-1}(v)=X_{-1}(u+v)$ in $G$ from relator (Re:1a). This is the first step of the source proof.\n\\item \\leanname{Xm\\_zero\\_in\\_G} derives $X_{-1}(0)=1$ from (Re:1a) at $u=v=0$, via $X(0)X(0)X(0)^{-1}=1$. This plays the role of the cited Lemma 3.1.\n\\item \\leanname{solution} sets $v=-u$ to get $X_{-1}(u)X_{-1}(-u)=1$, then concludes $X_{-1}(u)^{-1}=X_{-1}(-u)$ by uniqueness of inverses.\n\\end{itemize}\n\nThis follows the source proof directly, and each lemma states exactly the step it represents.",
+    "concerns": "None",
+    "verdict": "FAITHFUL",
+    "model": "claude-opus-5-5"
+  },
+  "report": {
+    "pdf": "/home/loganluna/workspace/aiprover_prove2me_workspace/results/srv_20261004_123234_GSimple_Corollary_3_2/report/gsimple_x_inverse.pdf",
+    "compiled": true,
+    "discrepancies": "- **Location:** Formalization, \"The relators\", the sentence on powers of $s$ (\"taken in $\\mathbb{C}^\\times$ when they are arguments of $H_i$, and in $\\mathbb{C}$ otherwise\").\n  - **Problem:** In (Im:3), the power $s^{(\\ell+1)(j-\\ell)}$ is the argument of $\\widetilde w_e$, not of an $H_i$. The Lean code (`wt e (s ^ ((e.l + 1) * (e.j - e.l)))`, where `wt : Idx c \u2192 \u2102\u02e3 \u2192 \u2026`) computes it in $\\mathbb{C}^\\times$, not in $\\mathbb{C}$. This does not change any statement, because the coercion $\\mathbb{C}^\\times\\to\\mathbb{C}$ commutes with powers.\n  - **Correction:** Say that powers of $s$ are taken in $\\mathbb{C}^\\times$ when they are arguments of $H_i$ or of $\\widetilde w_e$, and in $\\mathbb{C}$ when they are coefficients inside the arguments of $X_e$ and $Y_e$.\n\nAll other parts check out:\n- Every `Rl` constructor matches its source relation, including truncated subtraction, which is exact because $\\ell<j$.\n- `Idx` and `cc` match the source's $E$ and $c_{\\ell j}$.\n- The target theorem matches the corollary for every $c$, so in particular for the coefficients of $J$.\n- The lemma proofs are correct accounts of the Lean code, and each cites only earlier results.",
+    "problems": []
+  },
+  "sketch": {
+    "main_proof": "apply inv_eq_of_mul_eq_one_right\nhave h := Xm_add_in_G c u (-u)\nrw [add_neg_cancel, Xm_zero_in_G] at h\nexact h",
+    "lemmas": [
+      {
+        "name": "mk_rel_eq_one_in_G",
+        "statement": "theorem mk_rel_eq_one_in_G (c : \u2115 \u2192 \u2115) (r : FreeGroup (GM.Gen c)) (h : GM.Rl c r) :\n    (PresentedGroup.mk {r' : FreeGroup (GM.Gen c) | GM.Rl c r'} r : GM.G c) = 1",
+        "helpers": "",
+        "proof": "exact (PresentedGroup.one_of_mem h)",
+        "proved": true,
+        "last_errors": "",
+        "last_attempts": "",
+        "attempts": 0,
+        "handed_back": false
+      },
+      {
+        "name": "Xm_add_in_G",
+        "statement": "theorem Xm_add_in_G (c : \u2115 \u2192 \u2115) (u v : \u2102) :\n    (PresentedGroup.of (GM.Gen.Xm u : GM.Gen c) : GM.G c) * (PresentedGroup.of (GM.Gen.Xm v : GM.Gen c) : GM.G c)\n      = (PresentedGroup.of (GM.Gen.Xm (u + v) : GM.Gen c) : GM.G c)",
+        "helpers": "",
+        "proof": "  have h := PresentedGroup.mk_eq_mk_of_mul_inv_mem (GM.Rl.re1a (c := c) u v)\n  simpa [GM.fXm, GM.G, PresentedGroup.of] using h",
+        "proved": true,
+        "last_errors": "",
+        "last_attempts": "",
+        "attempts": 0,
+        "handed_back": false
+      },
+      {
+        "name": "Xm_zero_in_G",
+        "statement": "theorem Xm_zero_in_G (c : \u2115 \u2192 \u2115) :\n    (PresentedGroup.of (GM.Gen.Xm (0 : \u2102) : GM.Gen c) : GM.G c) = 1",
+        "helpers": "",
+        "proof": "  have h := PresentedGroup.one_of_mem (GM.Rl.re1a (c := c) (0 : \u2102) (0 : \u2102))\n  simpa [add_zero] using h",
+        "proved": true,
+        "last_errors": "",
+        "last_attempts": "",
+        "attempts": 0,
+        "handed_back": false
+      }
+    ]
+  },
+  "wall_seconds": 3357.0,
+  "phase_seconds": {
+    "formalize": 134.5,
+    "sketch": 40.1,
+    "prove": 2740.6,
+    "assemble": 64.5,
+    "review": 23.7,
+    "report": 353.5
+  },
+  "calls_by_role": {
+    "captain": 5,
+    "auditor": 1,
+    "solver": 5,
+    "reviewer": 2,
+    "writer": 2
+  },
+  "usage_by_model": {
+    "claude-sonnet-5-5": {
+      "input_tokens": 12,
+      "output_tokens": 20230,
+      "cost_usd": 0.388896
+    },
+    "claude-haiku-4-5-20251001": {
+      "input_tokens": 50462,
+      "output_tokens": 84,
+      "cost_usd": 0.050882
+    },
+    "claude-opus-5-5": {
+      "input_tokens": 10,
+      "output_tokens": 29676,
+      "cost_usd": 1.1406466000000002
+    }
+  },
+  "lean_attempt_files": 13
+}

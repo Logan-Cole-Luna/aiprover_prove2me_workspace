@@ -30,7 +30,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from . import vista
+from . import models, vista
 from .vista import AIPROVER_CONFIG, run_command
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,6 +53,10 @@ MAX_STALLED_RESUMPTIONS = 3
 PROGRESS_EVENTS = ("formalization_compiled", "audit_verdict", "sketch_accepted",
                    "lemma_proved", "replan")
 OPEN_STATES = ("awaiting_approval", "queued", "running", "cancelling")
+# Per-run options the worker uses itself rather than passing to run.py:
+# `after` names a run that must end before this one starts (a run that
+# builds on a library entry the other adds).
+SERVER_OPTIONS = ("after",)
 
 logger = logging.getLogger(__name__)
 
@@ -74,12 +78,14 @@ CREATE TABLE IF NOT EXISTS jobs (
     resumptions INTEGER NOT NULL DEFAULT 0,
     progress    INTEGER NOT NULL DEFAULT 0,  -- progress events at the last requeue
     stalled     INTEGER NOT NULL DEFAULT 0,  -- requeues in a row without progress
-    options     TEXT                         -- JSON {config field: value} for this run
+    options     TEXT,                        -- JSON {config field: value} for this run
+    agents      TEXT                         -- JSON models of the run, see models.py
 );
 -- Vista server jobs submitted by the worker (only these are cancelled when idle).
 CREATE TABLE IF NOT EXISTS vista_jobs (
     job_id      TEXT PRIMARY KEY,
-    submitted   REAL NOT NULL
+    submitted   REAL NOT NULL,
+    checkpoint  TEXT                         -- checkpoint the job serves
 );
 """
 # Columns added after the first deployment, for databases created before them.
@@ -87,7 +93,9 @@ MIGRATIONS = ["ALTER TABLE jobs ADD COLUMN approved_by TEXT",
               "ALTER TABLE jobs ADD COLUMN resumptions INTEGER NOT NULL DEFAULT 0",
               "ALTER TABLE jobs ADD COLUMN progress INTEGER NOT NULL DEFAULT 0",
               "ALTER TABLE jobs ADD COLUMN stalled INTEGER NOT NULL DEFAULT 0",
-              "ALTER TABLE jobs ADD COLUMN options TEXT"]
+              "ALTER TABLE jobs ADD COLUMN options TEXT",
+              "ALTER TABLE jobs ADD COLUMN agents TEXT",
+              "ALTER TABLE vista_jobs ADD COLUMN checkpoint TEXT"]
 
 
 REASONING_PROXY = "http://127.0.0.1:18565/v1/models"
@@ -113,6 +121,19 @@ def endpoint_status(bring_up: bool) -> tuple[bool, str]:
     if code == 0 and not proxy_up():
         return False, "reasoning proxy not answering on 127.0.0.1:18565"
     return code == 0, message
+
+
+def job_selection(job: dict) -> dict:
+    """Models chosen for a job; empty for a job submitted before the choice
+    existed, which runs with the served config."""
+    return json.loads(job.get("agents") or "null") or {}
+
+
+def job_checkpoint(job: dict) -> str | None:
+    """Checkpoint the model server must serve for `job`; None if it needs none.
+    The served config's solver uses the trained model."""
+    selection = job_selection(job)
+    return models.checkpoint_of(selection) if selection else vista.CHECKPOINTS["trained"]
 
 
 def process_alive(pid: int | None, run_id: str) -> bool:
@@ -199,8 +220,13 @@ class JobStore:
     def managed_vista_jobs(self) -> list[str]:
         return [row["job_id"] for row in self._execute("SELECT job_id FROM vista_jobs")]
 
-    def add_vista_job(self, job_id: str) -> None:
-        self._execute("INSERT OR IGNORE INTO vista_jobs VALUES (?, ?)", (job_id, time.time()))
+    def vista_job_checkpoints(self) -> dict[str, str | None]:
+        rows = self._execute("SELECT job_id, checkpoint FROM vista_jobs")
+        return {row["job_id"]: row["checkpoint"] for row in rows}
+
+    def add_vista_job(self, job_id: str, checkpoint: str) -> None:
+        self._execute("INSERT OR IGNORE INTO vista_jobs (job_id, submitted, checkpoint) "
+                      "VALUES (?, ?, ?)", (job_id, time.time(), checkpoint))
 
     def remove_vista_job(self, job_id: str) -> None:
         self._execute("DELETE FROM vista_jobs WHERE job_id = ?", (job_id,))
@@ -218,6 +244,8 @@ class Worker(threading.Thread):
         self.running: dict[str, subprocess.Popen | None] = {}
         self.vista_message = "not checked"
         self.idle_since: float | None = None
+        # Checkpoint the model endpoint was last confirmed to serve.
+        self.serving: str | None = None
 
     def run(self) -> None:
         for job in self.store.in_states("running", "cancelling"):
@@ -241,21 +269,41 @@ class Worker(threading.Thread):
         if candidate is None:
             time.sleep(POLL_SECONDS)
             return
-        endpoint_up, message = endpoint_status(bring_up=True)
-        if endpoint_up:
-            self.vista_message = message
+        checkpoint = job_checkpoint(candidate)
+        if checkpoint is None or self._serving(checkpoint):
             self._execute(candidate)
             return
-        self._ensure_server()
         time.sleep(BACKEND_RETRY_SECONDS)
 
     def _next_to_start(self, queued: list[dict]) -> dict | None:
-        """The first queued job that may start now: a slot is free and no run
-        of the same problem is in progress."""
+        """The first queued job that may start now: a slot is free, no run of
+        the same problem is in progress, and the model server's checkpoint is
+        the one the job needs or may change. Running jobs share one checkpoint;
+        a job waiting for another one holds back later jobs that use a model
+        server, so that it is not starved."""
         if len(self.running) >= MAX_CONCURRENT_RUNS:
             return None
-        busy = {self.store.get(run_id)["uuid"] for run_id in self.running}
-        return next((job for job in queued if job["uuid"] not in busy), None)
+        running = [self.store.get(run_id) for run_id in self.running]
+        busy = {job["uuid"] for job in running}
+        in_use = {job_checkpoint(job) for job in running} - {None}
+        held_back = False
+        for job in queued:
+            if job["uuid"] in busy or self._waiting_for_dependency(job):
+                continue
+            checkpoint = job_checkpoint(job)
+            if checkpoint is None:
+                return job
+            if held_back:
+                continue
+            if not in_use or checkpoint in in_use:
+                return job
+            held_back = True
+        return None
+
+    def _waiting_for_dependency(self, job: dict) -> bool:
+        after = json.loads(job.get("options") or "{}").get("after")
+        dependency = self.store.get(after) if after else None
+        return dependency is not None and dependency["state"] in OPEN_STATES
 
     def _reap(self) -> None:
         """Finish the runs whose process has exited."""
@@ -270,27 +318,61 @@ class Worker(threading.Thread):
 
     # Vista server ---------------------------------------------------------
 
-    def _ensure_server(self) -> None:
-        """Submit a model server job unless one is already queued or running."""
+    def _serving(self, checkpoint: str) -> bool:
+        """True if the model endpoint is up and serves `checkpoint`; otherwise
+        bring the server in line with it: replace a server job of another
+        checkpoint (none of the running jobs uses it), or submit one."""
+        if self.serving == checkpoint:
+            endpoint_up, message = endpoint_status(bring_up=True)
+            if endpoint_up:
+                self.vista_message = message
+                return True
+            self.serving = None
         jobs = vista.server_jobs()
         if jobs is None:
             self.vista_message = ("Vista unreachable: reopen the ControlMaster "
                                   "(~/.ssh/vista.sock) with MFA")
             logger.warning(self.vista_message)
-            return
-        for job_id in self.store.managed_vista_jobs():
+            return False
+        checkpoints = self.store.vista_job_checkpoints()
+        for job_id in checkpoints:
             if job_id not in jobs:
                 self.store.remove_vista_job(job_id)
-        if jobs:
-            summary = ", ".join(f"{job_id} {state}" for job_id, state in jobs.items())
-            self.vista_message = f"waiting for server job {summary}"
-            return
-        job_id = vista.submit_server()
-        if job_id:
-            self.store.add_vista_job(job_id)
-            self.vista_message = f"submitted server job {job_id}"
-        else:
-            self.vista_message = "server job submission failed (see server log)"
+        # A job of an earlier deployment has no recorded checkpoint: the default.
+        serves = {job_id: checkpoints.get(job_id) or vista.CHECKPOINTS["trained"]
+                  for job_id in jobs}
+        for job_id in [job_id for job_id, served in serves.items() if served != checkpoint]:
+            if job_id not in checkpoints:
+                self.vista_message = f"waiting for server job {job_id}, which serves another checkpoint"
+                return False
+            logger.info(f"cancelling server job {job_id} (serves {serves[job_id]}) "
+                        f"for a run that needs {checkpoint}")
+            if vista.cancel_server(job_id):
+                self.store.remove_vista_job(job_id)
+            del serves[job_id]
+        if not serves:
+            job_id = vista.submit_server(checkpoint)
+            if job_id:
+                self.store.add_vista_job(job_id, checkpoint)
+                self.vista_message = f"submitted server job {job_id}"
+            else:
+                self.vista_message = "server job submission failed (see server log)"
+            return False
+        endpoint_up, message = endpoint_status(bring_up=True)
+        if endpoint_up:
+            # A further job of this checkpoint would take over the handoff file
+            # when it starts and leave this one idle, so pending ones are cancelled.
+            if any(state == "RUNNING" for state in jobs.values()):
+                for job_id, state in jobs.items():
+                    if state == "PENDING" and job_id in checkpoints and vista.cancel_server(job_id):
+                        logger.info(f"cancelled pending server job {job_id}; another serves {checkpoint}")
+                        self.store.remove_vista_job(job_id)
+            self.serving = checkpoint
+            self.vista_message = message
+            return True
+        summary = ", ".join(f"{job_id} {state}" for job_id, state in jobs.items())
+        self.vista_message = f"waiting for server job {summary}"
+        return False
 
     def _release_idle_servers(self) -> None:
         """Cancel the server jobs this worker submitted after IDLE_SECONDS without work."""
@@ -305,6 +387,7 @@ class Worker(threading.Thread):
             logger.info(f"no queued runs for {IDLE_SECONDS // 60} min; cancelling {job_id}")
             if vista.cancel_server(job_id):
                 self.store.remove_vista_job(job_id)
+        self.serving = None
         self.vista_message = "server jobs cancelled after idle period"
         self.idle_since = None
 
@@ -334,11 +417,17 @@ class Worker(threading.Thread):
         run_id = job["run_id"]
         # Restarts after infrastructure failures are made by the worker, which
         # waits for a new model server; run.py's own restarts would not.
+        config_path = ROOT / "temp" / f"{run_id}.config.json"
+        config_path.parent.mkdir(exist_ok=True)
+        config_path.write_text(json.dumps(models.build_config(CONFIG, job_selection(job)),
+                                          indent=1))
         arguments = [sys.executable, "-m", "orchestrator.run",
-                     "--dataset", job["dataset"], "--config", str(CONFIG),
+                     "--dataset", job["dataset"], "--config", str(config_path),
                      "--run-id", run_id, "--max-restarts", "0"]
         # Per-run settings over the served config, e.g. more attempts per lemma.
         for name, value in json.loads(job.get("options") or "{}").items():
+            if name in SERVER_OPTIONS:
+                continue
             arguments += ["--" + name.replace("_", "-"), str(value)]
         if (ROOT / "results" / run_id / "trace.json").exists():
             arguments.append("--resume")

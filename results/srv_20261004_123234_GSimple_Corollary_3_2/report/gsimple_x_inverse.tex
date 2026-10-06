@@ -1,0 +1,789 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[varqu,scaled=0.95]{zi4}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{fvextra}
+\usepackage{booktabs,enumitem,microtype,needspace}
+\usepackage[colorlinks,linkcolor=MidnightBlue,citecolor=MidnightBlue,urlcolor=MidnightBlue]{hyperref}
+\usepackage[capitalise,nameinlink]{cleveref}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\newcommand{\leanname}[1]{\texttt{\detokenize{#1}}}
+\newenvironment{leanblock}[1]
+  {\par\smallskip\Needspace{4\baselineskip}\noindent{\footnotesize\textsf{#1}}\par\nopagebreak\vspace{2pt}}
+  {\par\medskip}
+\fvset{breaklines=true,breakanywhere=true,fontsize=\footnotesize,frame=leftline,
+  framerule=0.8pt,rulecolor=\color{gray!60},xleftmargin=4pt,framesep=6pt}
+
+\makeatletter
+\def\PY@reset{\let\PY@it=\relax \let\PY@bf=\relax%
+    \let\PY@ul=\relax \let\PY@tc=\relax%
+    \let\PY@bc=\relax \let\PY@ff=\relax}
+\def\PY@tok#1{\csname PY@tok@#1\endcsname}
+\def\PY@toks#1+{\ifx\relax#1\empty\else%
+    \PY@tok{#1}\expandafter\PY@toks\fi}
+\def\PY@do#1{\PY@bc{\PY@tc{\PY@ul{%
+    \PY@it{\PY@bf{\PY@ff{#1}}}}}}}
+\def\PY#1#2{\PY@reset\PY@toks#1+\relax+\PY@do{#2}}
+
+\@namedef{PY@tok@w}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.73,0.73}{##1}}}
+\@namedef{PY@tok@c}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@cp}{\def\PY@tc##1{\textcolor[rgb]{0.61,0.40,0.00}{##1}}}
+\@namedef{PY@tok@k}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kp}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kt}{\def\PY@tc##1{\textcolor[rgb]{0.69,0.00,0.25}{##1}}}
+\@namedef{PY@tok@o}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@ow}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.67,0.13,1.00}{##1}}}
+\@namedef{PY@tok@nb}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@nf}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,1.00}{##1}}}
+\@namedef{PY@tok@nc}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,1.00}{##1}}}
+\@namedef{PY@tok@nn}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,1.00}{##1}}}
+\@namedef{PY@tok@ne}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.80,0.25,0.22}{##1}}}
+\@namedef{PY@tok@nv}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@no}{\def\PY@tc##1{\textcolor[rgb]{0.53,0.00,0.00}{##1}}}
+\@namedef{PY@tok@nl}{\def\PY@tc##1{\textcolor[rgb]{0.46,0.46,0.00}{##1}}}
+\@namedef{PY@tok@ni}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.44,0.44,0.44}{##1}}}
+\@namedef{PY@tok@na}{\def\PY@tc##1{\textcolor[rgb]{0.41,0.47,0.13}{##1}}}
+\@namedef{PY@tok@nt}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@nd}{\def\PY@tc##1{\textcolor[rgb]{0.67,0.13,1.00}{##1}}}
+\@namedef{PY@tok@s}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@sd}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@si}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.64,0.35,0.47}{##1}}}
+\@namedef{PY@tok@se}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.67,0.36,0.12}{##1}}}
+\@namedef{PY@tok@sr}{\def\PY@tc##1{\textcolor[rgb]{0.64,0.35,0.47}{##1}}}
+\@namedef{PY@tok@ss}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@sx}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@m}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@gh}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,0.50}{##1}}}
+\@namedef{PY@tok@gu}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.50,0.00,0.50}{##1}}}
+\@namedef{PY@tok@gd}{\def\PY@tc##1{\textcolor[rgb]{0.63,0.00,0.00}{##1}}}
+\@namedef{PY@tok@gi}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.52,0.00}{##1}}}
+\@namedef{PY@tok@gr}{\def\PY@tc##1{\textcolor[rgb]{0.89,0.00,0.00}{##1}}}
+\@namedef{PY@tok@ge}{\let\PY@it=\textit}
+\@namedef{PY@tok@gs}{\let\PY@bf=\textbf}
+\@namedef{PY@tok@ges}{\let\PY@bf=\textbf\let\PY@it=\textit}
+\@namedef{PY@tok@gp}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,0.50}{##1}}}
+\@namedef{PY@tok@go}{\def\PY@tc##1{\textcolor[rgb]{0.44,0.44,0.44}{##1}}}
+\@namedef{PY@tok@gt}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.27,0.87}{##1}}}
+\@namedef{PY@tok@err}{\def\PY@bc##1{{\setlength{\fboxsep}{\string -\fboxrule}\fcolorbox[rgb]{1.00,0.00,0.00}{1,1,1}{\strut ##1}}}}
+\@namedef{PY@tok@kc}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kd}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kn}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@kr}{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@bp}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.50,0.00}{##1}}}
+\@namedef{PY@tok@fm}{\def\PY@tc##1{\textcolor[rgb]{0.00,0.00,1.00}{##1}}}
+\@namedef{PY@tok@vc}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@vg}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@vi}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@vm}{\def\PY@tc##1{\textcolor[rgb]{0.10,0.09,0.49}{##1}}}
+\@namedef{PY@tok@sa}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@sb}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@sc}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@dl}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@s2}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@sh}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@s1}{\def\PY@tc##1{\textcolor[rgb]{0.73,0.13,0.13}{##1}}}
+\@namedef{PY@tok@mb}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@mf}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@mh}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@mi}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@il}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@mo}{\def\PY@tc##1{\textcolor[rgb]{0.40,0.40,0.40}{##1}}}
+\@namedef{PY@tok@ch}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@cm}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@cpf}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@c1}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+\@namedef{PY@tok@cs}{\let\PY@it=\textit\def\PY@tc##1{\textcolor[rgb]{0.24,0.48,0.48}{##1}}}
+
+\def\PYZbs{\char`\\}
+\def\PYZus{\char`\_}
+\def\PYZob{\char`\{}
+\def\PYZcb{\char`\}}
+\def\PYZca{\char`\^}
+\def\PYZam{\char`\&}
+\def\PYZlt{\char`\<}
+\def\PYZgt{\char`\>}
+\def\PYZsh{\char`\#}
+\def\PYZpc{\char`\%}
+\def\PYZdl{\char`\$}
+\def\PYZhy{\char`\-}
+\def\PYZsq{\char`\'}
+\def\PYZdq{\char`\"}
+\def\PYZti{\char`\~}
+% for compatibility with earlier versions
+\def\PYZat{@}
+\def\PYZlb{[}
+\def\PYZrb{]}
+\makeatother
+
+\DeclareUnicodeCharacter{00B9}{\ensuremath{^{1}}}
+\DeclareUnicodeCharacter{00D7}{\ensuremath{\times}}
+\DeclareUnicodeCharacter{02E3}{\ensuremath{^{\times}}}
+\DeclareUnicodeCharacter{207B}{\ensuremath{^{-}}}
+\DeclareUnicodeCharacter{2102}{\ensuremath{\mathbb{C}}}
+\DeclareUnicodeCharacter{2113}{\ensuremath{\ell}}
+\DeclareUnicodeCharacter{2115}{\ensuremath{\mathbb{N}}}
+\DeclareUnicodeCharacter{211B}{\ensuremath{\mathcal{R}}}
+\DeclareUnicodeCharacter{2124}{\ensuremath{\mathbb{Z}}}
+\DeclareUnicodeCharacter{2192}{\ensuremath{\to}}
+\DeclareUnicodeCharacter{2227}{\ensuremath{\wedge}}
+\DeclareUnicodeCharacter{2228}{\ensuremath{\vee}}
+\DeclareUnicodeCharacter{2260}{\ensuremath{\ne}}
+\DeclareUnicodeCharacter{2264}{\ensuremath{\le}}
+\DeclareUnicodeCharacter{27E8}{\ensuremath{\langle}}
+\DeclareUnicodeCharacter{27E9}{\ensuremath{\rangle}}
+\DeclareUnicodeCharacter{1D4B3}{\ensuremath{\mathcal{X}}}
+\DeclareUnicodeCharacter{1D52A}{\ensuremath{\mathfrak{m}}}
+\newcommand{\Cx}{\mathbb{C}^\times}
+\newcommand{\wt}{\widetilde{w}}
+\newcommand{\cX}{\mathcal{X}}
+\newcommand{\cR}{\mathcal{R}}
+
+\title{The inverse of $X_{-1}(u)$ in the group $G(\mathfrak{m})$: a machine-checked proof}
+\date{}
+\begin{document}
+\maketitle
+\begin{abstract}
+We present a formal verification of Corollary 3.2 (label \texttt{cor: gsimple x inverse}) from a text on the Monster Lie algebra group $G(\mathfrak{m})$. The group is defined by generators and relations, and the corollary states that $X_{-1}(u)^{-1}=X_{-1}(-u)$ for every $u\in\mathbb{C}$. In the formalization the group is the presented group on the generating symbols $\mathcal{X}$ modulo the full list of defining relations. The index set $E$ is built from an arbitrary function $c:\mathbb{N}\to\mathbb{N}$ in place of the coefficients of the modular function $J$. The identity is proved in Lean 4 with Mathlib for every such $c$, using only the relation (Re:1a).
+\end{abstract}
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Source & Carbone et al., G-Simple (draft), GSimple\_Corollary\_3\_2 \\
+Lean & leanprover/lean4:v4.23.0, Mathlib 37df177aaa \\
+Machine checks & compiles; no \texttt{sorry}; statement matches target; module build \\
+Axioms & \texttt{propext}, \texttt{Classical.choice}, \texttt{Quot.sound} \\
+Independent review & FAITHFUL (claude-opus-5-5) \\
+Agents & captain claude-sonnet-5-5; solvers aiprover; report claude-opus-5-5 \\
+Run & \texttt{srv\_20261004\_123234\_GSimple\_Corollary\_3\_2} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\tableofcontents
+
+\section{Statement}
+
+Let $\mathbb{C}$ denote the complex numbers and $\mathbb{N}$ the natural numbers. Let $c(j)$ denote the coefficient of $q^j$ in the modular function
+\[
+J(q)=\sum_{j\geq -1}c(j)q^j=\frac{1}{q}+196884\,q+21493760\,q^2+864299970\,q^3+\cdots,
+\]
+so that $c(-1)=1$, $c(0)=0$, $c(1)=196884,\dots$.
+
+\paragraph{Index set and constants.} The index set is
+\[
+E=\{(\ell,j,k)\mid j\in\mathbb{N},\ 1\leq k\leq c(j),\ 0\leq \ell<j\}.
+\]
+For $(\ell,j,k)\in E$ we set
+\[
+c_{\ell j}:=(-1)^{\ell+1}\binom{j-1}{\ell}(\ell+1)(j-\ell)\in\mathbb{C}.
+\]
+
+\paragraph{Generators.} Let $\cX$ be the set of symbols
+\[
+\{H_1(s),H_2(s),X_{-1}(u),Y_{-1}(u),X_{\ell,jk}(u),Y_{\ell,jk}(u)\mid s\in\Cx,\ u\in\mathbb{C},\ (\ell,j,k)\in E\},
+\]
+and let $F(\cX)$ be the free group on $\cX$.
+
+\paragraph{Relations.} The commutator is $(a,b):=aba^{-1}b^{-1}$. The set $\cR\subseteq F(\cX)$ and the auxiliary elements $\wt_{-1}(s)$, $\wt_{\ell,jk}(s)$ are given as follows, for all $s,t\in\Cx$, $u,v\in\mathbb{C}$ and $(\ell,j,k),(m,p,q)\in E$.
+\begingroup\allowdisplaybreaks
+\begin{align*}
+\tag{Re:0}
+  \wt_{-1}(s) &:= X_{-1}(s)\,Y_{-1}(-s^{-1})\,X_{-1}(s), \qquad \wt_{-1}:=\wt_{-1}(1),\\
+\tag{Im:0}
+  \wt_{\ell,jk}(s) &:= X_{\ell,jk}(s)\,Y_{\ell,jk}\Bigl(\frac{-s^{-1}}{c_{\ell j}}\Bigr)\,X_{\ell,jk}(s), \qquad \wt_{\ell,jk}:=\wt_{\ell,jk}(1),\\
+\intertext{Relations defining a subgroup $\mathrm{GL}_2(-1)$:}
+\tag{H:1a} H_1(s)H_1(t)&=H_1(st),\\
+\tag{H:1b} H_2(s)H_2(t)&=H_2(st),\\
+\tag{H:2} H_1(s)H_2(t)&=H_2(t)H_1(s),\\
+\tag{Re:1a} X_{-1}(u)X_{-1}(v)&=X_{-1}(u+v),\\
+\tag{Re:1b} Y_{-1}(u)Y_{-1}(v)&=Y_{-1}(u+v),\\
+\tag{Re:2} Y_{-1}(-t)X_{-1}(s)Y_{-1}(t)&=X_{-1}(-t^{-1})\,Y_{-1}(-t^{2}s)\,X_{-1}(t^{-1}),\\
+\tag{Re:3} \wt_{-1}(s)\wt_{-1}&=H_1(-s)H_2(-s^{-1}),\\
+\tag{Re:4a} \wt_{-1}X_{-1}(u)\wt_{-1}^{-1}&=Y_{-1}(-u),\\
+\tag{Re:4b} \wt_{-1}Y_{-1}(u)\wt_{-1}^{-1}&=X_{-1}(-u),\\
+\tag{Re:5a} \wt_{-1}H_1(s)\wt_{-1}^{-1}&=H_2(s),\\
+\tag{Re:5b} \wt_{-1}H_2(s)\wt_{-1}^{-1}&=H_1(s),\\
+\tag{Re:6a} H_1(s)X_{-1}(u)H_1(s)^{-1}&=X_{-1}(su),\\
+\tag{Re:6b} H_2(s)X_{-1}(u)H_2(s)^{-1}&=X_{-1}(s^{-1}u),\\
+\tag{Re:6c} H_1(s)Y_{-1}(u)H_1(s)^{-1}&=Y_{-1}(s^{-1}u),\\
+\tag{Re:6d} H_2(s)Y_{-1}(u)H_2(s)^{-1}&=Y_{-1}(su),\\
+\intertext{Relations defining subgroups $\mathrm{GL}_2(\ell,j,k)$:}
+\tag{Im:1a} X_{\ell,jk}(u)X_{\ell,jk}(v)&=X_{\ell,jk}(u+v),\\
+\tag{Im:1b} Y_{\ell,jk}(u)Y_{\ell,jk}(v)&=Y_{\ell,jk}(u+v),\\
+\tag{Im:2} Y_{\ell,jk}(-t)X_{\ell,jk}(s)Y_{\ell,jk}(t)&=X_{\ell,jk}\Bigl(\frac{-t^{-1}}{c_{\ell j}}\Bigr)\,Y_{\ell,jk}(-c_{\ell j}t^2s)\,X_{\ell,jk}\Bigl(\frac{t^{-1}}{c_{\ell j}}\Bigr),\\
+\tag{Im:3} \wt_{\ell,jk}\bigl(s^{(\ell+1)(j-\ell)}\bigr)\wt_{\ell,jk}&=H_1\bigl((-s)^{j-\ell}\bigr)H_2\bigl((-s)^{\ell+1}\bigr),\\
+\tag{Im:4a} \wt_{\ell,jk}X_{\ell,jk}(u)\wt_{\ell,jk}^{-1}&=Y_{\ell,jk}\Bigl(\frac{-u}{c_{\ell j}}\Bigr),\\
+\tag{Im:4b} \wt_{\ell,jk}Y_{\ell,jk}(u)\wt_{\ell,jk}^{-1}&=X_{\ell,jk}(-c_{\ell j}u),\\
+\tag{Im:5a} \wt_{\ell,jk}H_1\bigl(s^{j-\ell}\bigr)\wt_{\ell,jk}^{-1}&=H_2\bigl(s^{-(\ell+1)}\bigr),\\
+\tag{Im:5b} \wt_{\ell,jk}H_2\bigl(s^{\ell+1}\bigr)\wt_{\ell,jk}^{-1}&=H_1\bigl(s^{-(j-\ell)}\bigr),\\
+\tag{Im:6a} H_1(s)X_{\ell,jk}(u)H_1(s)^{-1}&=X_{\ell,jk}(s^{\ell+1}u),\\
+\tag{Im:6b} H_2(s)X_{\ell,jk}(u)H_2(s)^{-1}&=X_{\ell,jk}(s^{j-\ell}u),\\
+\tag{Im:6c} H_1(s)Y_{\ell,jk}(u)H_1(s)^{-1}&=Y_{\ell,jk}(s^{-(\ell+1)}u),\\
+\tag{Im:6d} H_2(s)Y_{\ell,jk}(u)H_2(s)^{-1}&=Y_{\ell,jk}(s^{-(j-\ell)}u),\\
+\intertext{Relations between the unipotent generators:}
+\tag{U:1a} (X_{-1}(u),X_{j-1,jk}(v))&=1,\\
+\tag{U:1b} (Y_{-1}(u),Y_{j-1,jk}(v))&=1,\\
+\tag{U:1c} (Y_{-1}(u),X_{0,jk}(v))&=1,\\
+\tag{U:1d} (X_{-1}(u),Y_{0,jk}(v))&=1,\\
+\tag{U:2} (X_{\ell,jk}(u),Y_{m,pq}(v))&=1\quad\text{for } j\neq p,\text{ or } k\neq q,\text{ or } |\ell-m|>1,\\
+\tag{U:3a} (X_{1,2k}(u),Y_{0,2k}(v))&=X_{-1}(uv),\\
+\tag{U:3b} (X_{0,2k}(u),Y_{1,2k}(v))&=Y_{-1}(uv),\\
+\intertext{Action of $\wt_{-1}$ on the unipotent generators:}
+\tag{U:4a} \wt_{-1}X_{\ell,jk}(u)\wt_{-1}^{-1}&=X_{j-1-\ell,jk}\bigl((-1)^{j-\ell-1}u\bigr),\\
+\tag{U:4b} \wt_{-1}Y_{\ell,jk}(u)\wt_{-1}^{-1}&=Y_{j-1-\ell,jk}\bigl((-1)^{j-\ell-1}u\bigr).
+\end{align*}
+\endgroup
+
+\paragraph{The group.} The group is
+\[
+G(\mathfrak{m})=\langle\cX\mid\cR\rangle=F(\cX)/N_\cR,
+\]
+where $N_\cR$ is the normal closure of $\cR$.
+
+\begin{theorem}[Corollary 3.2]
+For all $u\in\mathbb{C}$, $X_{-1}(u)^{-1}=X_{-1}(-u)$ in $G(\mathfrak{m})$.
+\end{theorem}
+
+\section{Formalization}
+
+Throughout, $c:\mathbb{N}\to\mathbb{N}$ is an arbitrary function. It is a parameter of every definition, and it replaces the coefficient function of $J$; see the discussion after the target statement.
+
+\paragraph{The index set.} The index set $E_c$ is the set of triples $(\ell,j,k)\in\mathbb{N}^3$ with
+\[
+\ell<j \quad\text{and}\quad 1\leq k\leq c(j).
+\]
+This is the source's $E$ with $c$ in place of the coefficients of $J$.
+
+\begin{leanblock}{Lean: \texttt{Idx}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ Index set E = \PYZob{}(ℓ,j,k) | 1 ≤ k ≤ c(j), 0 ≤ ℓ \PYZlt{} j\PYZcb{}, encoded as triples (ℓ,j,k). }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{k+kt}{Type}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{o}{\PYZob{}}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{×}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{×}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{\PYZlt{}}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{∧}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{≤}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{+w}{ }\PY{n+nb+bp}{∧}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{+w}{ }\PY{n+nb+bp}{≤}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{o}{\PYZcb{}}
+\end{Verbatim}
+\end{leanblock}
+
+For $e=(\ell,j,k)\in E_c$ we write $\ell_e=\ell$, $j_e=j$ and $k_e=k$ for the three coordinates.
+
+\begin{leanblock}{Lean: \texttt{Idx.l}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{Idx}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{n+nb+bp}{.}\PY{l+m}{1}
+\end{Verbatim}
+\end{leanblock}
+\begin{leanblock}{Lean: \texttt{Idx.j}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{Idx}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{1}
+\end{Verbatim}
+\end{leanblock}
+\begin{leanblock}{Lean: \texttt{Idx.k}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{Idx}\PY{n+nb+bp}{.}\PY{n}{k}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{2}
+\end{Verbatim}
+\end{leanblock}
+
+\paragraph{The generating symbols.} The set of symbols $\cX_c$ is the disjoint union of the following families:
+\begin{itemize}
+\item $H_1(s)$ and $H_2(s)$ for $s\in\Cx$;
+\item $X_{-1}(u)$ and $Y_{-1}(u)$ for $u\in\mathbb{C}$;
+\item $X_e(u)$ and $Y_e(u)$ for $e\in E_c$ and $u\in\mathbb{C}$.
+\end{itemize}
+Here $X_e(u)$ stands for the source's $X_{\ell,jk}(u)$ when $e=(\ell,j,k)$, and similarly for $Y_e(u)$.
+
+\begin{leanblock}{Lean: \texttt{Gen}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ The generating symbols 𝒳. }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{inductive}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{k+kt}{Type}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{H1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{H2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{Ym}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{X}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{Y}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\end{Verbatim}
+\end{leanblock}
+
+The next six definitions are the images of these symbols in the free group $F(\cX_c)$, that is, the corresponding words of length one. We denote them by the same letters $H_1(s)$, $H_2(s)$, $X_{-1}(u)$, $Y_{-1}(u)$, $X_e(u)$, $Y_e(u)$.
+
+\begin{leanblock}{Lean: \texttt{fH1}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{H1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+\begin{leanblock}{Lean: \texttt{fH2}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{H2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+\begin{leanblock}{Lean: \texttt{fXm}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+\begin{leanblock}{Lean: \texttt{fYm}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Ym}\PY{+w}{ }\PY{n}{u}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+\begin{leanblock}{Lean: \texttt{fX}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fX}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{X}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+\begin{leanblock}{Lean: \texttt{fY}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Y}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+
+\paragraph{The constants $c_{\ell j}$.} For $e=(\ell,j,k)\in E_c$,
+\[
+c_e:=(-1)^{\ell+1}\binom{j-1}{\ell}(\ell+1)(j-\ell)\in\mathbb{C}.
+\]
+The differences $j-1$ and $j-\ell$ are computed in $\mathbb{N}$ by truncated subtraction. Since $\ell<j$ forces $j\geq 1$, both are the true differences. Hence $c_e=c_{\ell j}$.
+
+\begin{leanblock}{Lean: \texttt{cc}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ c\PYZus{}\PYZob{}ℓ j\PYZcb{} = (}\PY{l+s+sd}{\PYZhy{}}\PY{l+s+sd}{1)\PYZca{}\PYZob{}ℓ+1\PYZcb{} C(j}\PY{l+s+sd}{\PYZhy{}}\PY{l+s+sd}{1,ℓ) (ℓ+1)(j}\PY{l+s+sd}{\PYZhy{}}\PY{l+s+sd}{ℓ). }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{+w}{ }\PY{o}{:=}
+\PY{+w}{  }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{n+nb+bp}{.}\PY{n}{choose}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+
+\paragraph{The elements $\wt$.} For $s\in\Cx$ and $e\in E_c$, define the words in $F(\cX_c)$
+\[
+\wt_{-1}(s):=X_{-1}(s)\,Y_{-1}(-s^{-1})\,X_{-1}(s)
+\]
+and
+\[
+\wt_e(s):=X_e(s)\,Y_e(-s^{-1}/c_e)\,X_e(s).
+\]
+These are (Re:0) and (Im:0). The source's $\wt_{-1}$ and $\wt_{\ell,jk}$ are $\wt_{-1}(1)$ and $\wt_e(1)$.
+
+\begin{leanblock}{Lean: \texttt{wm}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ (Re:0) }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{wm}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+\begin{leanblock}{Lean: \texttt{wt}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ (Im:0) }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{wt}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}
+\PY{+w}{  }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+
+\paragraph{Commutator and conjugation.} For $a,b\in F(\cX_c)$, the commutator is $(a,b):=aba^{-1}b^{-1}$ and the conjugate is $a\,b\,a^{-1}$.
+
+\begin{leanblock}{Lean: \texttt{comm}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ commutator (a,b) = a b a⁻¹ b⁻¹ }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{a}\PY{+w}{ }\PY{n}{b}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{a}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{b}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{a}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{b}\PY{n+nb+bp}{⁻¹}
+\end{Verbatim}
+\end{leanblock}
+\begin{leanblock}{Lean: \texttt{conj}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ conjugation a b a⁻¹ }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{a}\PY{+w}{ }\PY{n}{b}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{a}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{b}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{a}\PY{n+nb+bp}{⁻¹}
+\end{Verbatim}
+\end{leanblock}
+
+\paragraph{The relators.} The set $\cR_c\subseteq F(\cX_c)$ consists of the words $L\,R^{-1}$, one for each source relation $L=R$. For relations of the form $(a,b)=1$ the word is the commutator $(a,b)$ itself. The families are listed below. Here $s,t$ range over $\Cx$, $u,v$ over $\mathbb{C}$, and $e,f,e'$ over $E_c$. Powers of $s$ with exponent in $\mathbb{N}$ or $\mathbb{Z}$ are taken in $\Cx$ when they are arguments of $H_i$ or of $\wt_e$, and in $\mathbb{C}$ when they are coefficients inside the arguments of $X_e$ and $Y_e$. Abbreviate $\ell=\ell_e$, $j=j_e$, $k=k_e$.
+\begin{itemize}
+\item (H:1a), (H:1b): $H_1(s)H_1(t)H_1(st)^{-1}$ and $H_2(s)H_2(t)H_2(st)^{-1}$.
+\item (H:2): $H_1(s)H_2(t)\bigl(H_2(t)H_1(s)\bigr)^{-1}$.
+\item (Re:1a), (Re:1b): $X_{-1}(u)X_{-1}(v)X_{-1}(u+v)^{-1}$ and $Y_{-1}(u)Y_{-1}(v)Y_{-1}(u+v)^{-1}$.
+\item (Re:2): $Y_{-1}(-t)X_{-1}(s)Y_{-1}(t)\bigl(X_{-1}(-t^{-1})Y_{-1}(-t^2s)X_{-1}(t^{-1})\bigr)^{-1}$.
+\item (Re:3): $\wt_{-1}(s)\wt_{-1}(1)\bigl(H_1(-s)H_2(-s^{-1})\bigr)^{-1}$.
+\item (Re:4a)--(Re:5b): $\wt_{-1}(1)\,g\,\wt_{-1}(1)^{-1}\,h^{-1}$ for the pairs $(g,h)$ equal to $(X_{-1}(u),Y_{-1}(-u))$, $(Y_{-1}(u),X_{-1}(-u))$, $(H_1(s),H_2(s))$ and $(H_2(s),H_1(s))$.
+\item (Re:6a)--(Re:6d): $H_1(s)X_{-1}(u)H_1(s)^{-1}X_{-1}(su)^{-1}$, together with the analogous words for $X_{-1}(s^{-1}u)$ under $H_2$, for $Y_{-1}(s^{-1}u)$ under $H_1$, and for $Y_{-1}(su)$ under $H_2$.
+\item (Im:1a), (Im:1b): $X_e(u)X_e(v)X_e(u+v)^{-1}$ and $Y_e(u)Y_e(v)Y_e(u+v)^{-1}$.
+\item (Im:2): $Y_e(-t)X_e(s)Y_e(t)\bigl(X_e(-t^{-1}/c_e)\,Y_e(-c_et^2s)\,X_e(t^{-1}/c_e)\bigr)^{-1}$.
+\item (Im:3): $\wt_e\bigl(s^{(\ell+1)(j-\ell)}\bigr)\wt_e(1)\bigl(H_1((-s)^{j-\ell})H_2((-s)^{\ell+1})\bigr)^{-1}$.
+\item (Im:4a), (Im:4b): $\wt_e(1)X_e(u)\wt_e(1)^{-1}Y_e(-u/c_e)^{-1}$ and $\wt_e(1)Y_e(u)\wt_e(1)^{-1}X_e(-c_eu)^{-1}$.
+\item (Im:5a), (Im:5b): $\wt_e(1)H_1(s^{j-\ell})\wt_e(1)^{-1}H_2(s^{-(\ell+1)})^{-1}$ and $\wt_e(1)H_2(s^{\ell+1})\wt_e(1)^{-1}H_1(s^{-(j-\ell)})^{-1}$. The negative exponents are integer powers in $\Cx$.
+\item (Im:6a)--(Im:6d): $H_1(s)X_e(u)H_1(s)^{-1}X_e(s^{\ell+1}u)^{-1}$, together with the analogous words for $X_e(s^{j-\ell}u)$ under $H_2$, for $Y_e(s^{-(\ell+1)}u)$ under $H_1$, and for $Y_e(s^{-(j-\ell)}u)$ under $H_2$.
+\item (U:1a), (U:1b): $(X_{-1}(u),X_e(v))$ and $(Y_{-1}(u),Y_e(v))$ for all $e$ with $\ell_e+1=j_e$, that is, $\ell_e=j_e-1$.
+\item (U:1c), (U:1d): $(Y_{-1}(u),X_e(v))$ and $(X_{-1}(u),Y_e(v))$ for all $e$ with $\ell_e=0$.
+\item (U:2): $(X_e(u),Y_f(v))$ for all $e,f$ with $j_e\neq j_f$, or $k_e\neq k_f$, or $|\ell_e-\ell_f|>1$.
+\item (U:3a): $(X_e(u),Y_f(v))\,X_{-1}(uv)^{-1}$ for all $e,f\in E_c$ such that $e=(1,2,k)$ and $f=(0,2,k)$ for some $k\in\mathbb{N}$.
+\item (U:3b): $(X_e(u),Y_f(v))\,Y_{-1}(uv)^{-1}$ for all $e,f\in E_c$ such that $e=(0,2,k)$ and $f=(1,2,k)$ for some $k$.
+\item (U:4a), (U:4b): $\wt_{-1}(1)X_e(u)\wt_{-1}(1)^{-1}X_{e'}\bigl((-1)^{j-\ell-1}u\bigr)^{-1}$ and the same word with $Y$ in place of $X$, for all $e,e'$ with $e'=(j-1-\ell,j,k)$. Because $\ell<j$, the subtraction $j-1-\ell$ in $\mathbb{N}$ is exact, and this triple always lies in $E_c$.
+\end{itemize}
+This list is exactly the source's $\cR$, with $E$ replaced by $E_c$.
+
+\begin{leanblock}{Lean: \texttt{Rl}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ The set of defining relators; each constructor says `lhs = rhs` via the word `lhs * rhs⁻¹`. }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{inductive}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{k+kt}{Prop}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{h1a}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH1}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{t}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{h1b}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{t}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{h2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re1a}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re1b}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}
+\PY{+w}{        }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{l+m+mi}{2}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re3}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{s}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re4a}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re4b}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re5a}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re5b}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re6a}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re6b}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re6c}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re6d}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im1a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im1b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im2}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}
+\PY{+w}{        }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{l+m+mi}{2}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}
+\PY{+w}{          }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im3}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{*}
+\PY{+w}{        }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im4a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im4b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im5a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im5b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im6a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im6b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im6c}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im6d}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u1a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u1b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u1c}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{l+m+mi}{0}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u1d}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{l+m+mi}{0}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u2}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{≠}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{∨}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{k}\PY{+w}{ }\PY{n+nb+bp}{≠}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{n}{k}\PY{+w}{ }\PY{n+nb+bp}{∨}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{\PYZlt{}}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{.}\PY{n}{natAbs}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u3a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{k}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{he}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{1}\PY{o}{,}\PY{+w}{ }\PY{l+m+mi}{2}\PY{o}{,}\PY{+w}{ }\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{hf}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{o}{,}\PY{+w}{ }\PY{l+m+mi}{2}\PY{o}{,}\PY{+w}{ }\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u3b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{k}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{he}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{o}{,}\PY{+w}{ }\PY{l+m+mi}{2}\PY{o}{,}\PY{+w}{ }\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{hf}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{1}\PY{o}{,}\PY{+w}{ }\PY{l+m+mi}{2}\PY{o}{,}\PY{+w}{ }\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u4a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{,}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{o}{,}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u4b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{,}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{o}{,}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+
+\paragraph{The group.} The group $G_c$ is the presented group $\langle\cX_c\mid\cR_c\rangle=F(\cX_c)/N_{\cR_c}$, where $N_{\cR_c}$ is the normal closure of $\cR_c$. We write $\pi:F(\cX_c)\to G_c$ for the quotient map.
+
+\begin{leanblock}{Lean: \texttt{G}}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ The group G(𝔪) = ⟨𝒳 | ℛ⟩. }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{abbrev}\PY{+w}{ }\PY{n}{G}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{k+kt}{Type}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{PresentedGroup}\PY{+w}{ }\PY{o}{\PYZob{}}\PY{n}{r}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{r}\PY{o}{\PYZcb{}}
+\end{Verbatim}
+\end{leanblock}
+
+\paragraph{The target statement.}
+
+\begin{leanblock}{Lean: target statement \texttt{gsimple\_x\_inverse}, fixed before the proof; \texttt{solution} is checked to have exactly this type}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{theorem}\PY{+w}{ }\PY{n}{gsimple\PYZus{}x\PYZus{}inverse}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{    }\PY{o}{(}\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{=}
+\PY{+w}{      }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }
+\end{Verbatim}
+\end{leanblock}
+
+The statement reads: for every function $c:\mathbb{N}\to\mathbb{N}$ and every $u\in\mathbb{C}$,
+\[
+\pi\bigl(X_{-1}(u)\bigr)^{-1}=\pi\bigl(X_{-1}(-u)\bigr)\quad\text{in } G_c.
+\]
+
+\paragraph{Relation to the source.} The source's group $G(\mathfrak{m})$ is the instance of $G_c$ in which $c(j)$ is the coefficient of $q^j$ in $J$ for $j\in\mathbb{N}$.
+\begin{itemize}
+\item The values $c(-1)$ and $c(0)$ never enter $E$. For $c(-1)$ this is because $j\in\mathbb{N}$. For $c(0)$ it is because no $\ell$ satisfies $\ell<0$.
+\item The formal theorem is stated for every $c$, with no hypothesis. In particular it holds for the coefficient function of $J$, and so it contains the source's corollary.
+\item The hypothesis $c(2)\geq 1$ mentioned in the problem set is not needed here.
+\item The corollary does not depend on $c$ at all, since its proof uses only (Re:1a).
+\end{itemize}
+
+\section{Proof}
+
+\subsection{Overview}
+
+The source proof has two steps. It reads (Re:1a) as $X_{-1}(u)X_{-1}(v)=X_{-1}(u+v)$ in $G(\mathfrak{m})$, and it sets $v=-u$ and uses $X_{-1}(0)=1$, which it takes from Lemma 3.1. The formal proof follows the same two steps.
+\begin{itemize}
+\item \cref{lem:Xm_add_in_G} is the reading of (Re:1a) as an identity in $G_c$.
+\item \cref{lem:Xm_zero_in_G} is the fact $X_{-1}(0)=1$.
+\end{itemize}
+The only deviation is that Lemma 3.1 of the source is not imported. The fact $X_{-1}(0)=1$ is instead derived directly from the instance $u=v=0$ of (Re:1a). \Cref{lem:mk_rel_eq_one_in_G} records the general fact that every relator becomes trivial in $G_c$. It is not used by the later declarations, which invoke the same fact directly for the specific relators they need.
+
+\begin{lemma}[\leanname{mk_rel_eq_one_in_G}]\label{lem:mk_rel_eq_one_in_G}
+Let $c:\mathbb{N}\to\mathbb{N}$ and let $r\in F(\cX_c)$ with $r\in\cR_c$. Then $\pi(r)=1$ in $G_c$.
+\end{lemma}
+
+\begin{leanblock}{Lean: \texttt{mk\_rel\_eq\_one\_in\_G} --- proved by AIProver, job 1, session 0}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{theorem}\PY{+w}{ }\PY{n}{mk\PYZus{}rel\PYZus{}eq\PYZus{}one\PYZus{}in\PYZus{}G}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{r}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{r}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{    }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{mk}\PY{+w}{ }\PY{o}{\PYZob{}}\PY{n}{r\PYZsq{}}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{r\PYZsq{}}\PY{o}{\PYZcb{}}\PY{+w}{ }\PY{n}{r}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{k}{by}
+\PY{+w}{  }\PY{n}{exact}\PY{+w}{ }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{one\PYZus{}of\PYZus{}mem}\PY{+w}{ }\PY{n}{h}\PY{o}{)}
+\end{Verbatim}
+\end{leanblock}
+
+\begin{proof}
+We have $r\in\cR_c\subseteq N_{\cR_c}=\ker\pi$.
+\end{proof}
+
+\begin{lemma}[\leanname{Xm_add_in_G}]\label{lem:Xm_add_in_G}
+Let $c:\mathbb{N}\to\mathbb{N}$ and $u,v\in\mathbb{C}$. Then in $G_c$
+\[
+\pi(X_{-1}(u))\,\pi(X_{-1}(v))=\pi(X_{-1}(u+v)).
+\]
+\end{lemma}
+
+\begin{leanblock}{Lean: \texttt{Xm\_add\_in\_G} --- proved by AIProver, job 2, session 1}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{theorem}\PY{+w}{ }\PY{n}{Xm\PYZus{}add\PYZus{}in\PYZus{}G}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{    }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}
+\PY{+w}{      }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{k}{by}
+\PY{+w}{  }\PY{k}{have}\PY{+w}{ }\PY{n}{h}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{mk\PYZus{}eq\PYZus{}mk\PYZus{}of\PYZus{}mul\PYZus{}inv\PYZus{}mem}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Rl}\PY{n+nb+bp}{.}\PY{n}{re1a}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{o}{)}
+\PY{+w}{  }\PY{n}{simpa}\PY{+w}{ }\PY{o}{[}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{fXm}\PY{o}{,}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{o}{,}\PY{+w}{ }\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{o}{]}\PY{+w}{ }\PY{k+kn}{using}\PY{+w}{ }\PY{n}{h}
+\end{Verbatim}
+\end{leanblock}
+
+\begin{proof}
+Put $a=X_{-1}(u)X_{-1}(v)$ and $b=X_{-1}(u+v)$ in $F(\cX_c)$. By (Re:1a), the word $ab^{-1}$ belongs to $\cR_c$, hence to $N_{\cR_c}$. Two words whose quotient $ab^{-1}$ lies in $N_{\cR_c}$ have the same image under $\pi$, so $\pi(a)=\pi(b)$. Since $\pi$ is a homomorphism, $\pi(a)=\pi(X_{-1}(u))\pi(X_{-1}(v))$, which is the claim.
+\end{proof}
+
+\begin{lemma}[\leanname{Xm_zero_in_G}]\label{lem:Xm_zero_in_G}
+Let $c:\mathbb{N}\to\mathbb{N}$. Then $\pi(X_{-1}(0))=1$ in $G_c$.
+\end{lemma}
+
+\begin{leanblock}{Lean: \texttt{Xm\_zero\_in\_G} --- proved by AIProver, job 2, session 1}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{theorem}\PY{+w}{ }\PY{n}{Xm\PYZus{}zero\PYZus{}in\PYZus{}G}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{    }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{k}{by}
+\PY{+w}{  }\PY{k}{have}\PY{+w}{ }\PY{n}{h}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{one\PYZus{}of\PYZus{}mem}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Rl}\PY{n+nb+bp}{.}\PY{n}{re1a}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n}{simpa}\PY{+w}{ }\PY{o}{[}\PY{n}{add\PYZus{}zero}\PY{o}{]}\PY{+w}{ }\PY{k+kn}{using}\PY{+w}{ }\PY{n}{h}
+\end{Verbatim}
+\end{leanblock}
+
+\begin{proof}
+The instance $u=v=0$ of (Re:1a) is the relator $X_{-1}(0)X_{-1}(0)X_{-1}(0+0)^{-1}\in\cR_c$, so its image under $\pi$ is $1$. Since $0+0=0$, this word equals $X_{-1}(0)X_{-1}(0)X_{-1}(0)^{-1}=X_{-1}(0)$ in $F(\cX_c)$. Hence $\pi(X_{-1}(0))=1$.
+\end{proof}
+
+\subsection{Proof of the theorem}
+
+\begin{leanblock}{Lean: \texttt{solution} --- main proof from the captain's sketch}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{theorem}\PY{+w}{ }\PY{n}{solution}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{    }\PY{o}{(}\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{=}
+\PY{+w}{      }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{k}{by}
+\PY{+w}{  }\PY{n}{apply}\PY{+w}{ }\PY{n}{inv\PYZus{}eq\PYZus{}of\PYZus{}mul\PYZus{}eq\PYZus{}one\PYZus{}right}
+\PY{+w}{  }\PY{k}{have}\PY{+w}{ }\PY{n}{h}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{Xm\PYZus{}add\PYZus{}in\PYZus{}G}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{o}{)}
+\PY{+w}{  }\PY{n}{rw}\PY{+w}{ }\PY{o}{[}\PY{n}{add\PYZus{}neg\PYZus{}cancel}\PY{o}{,}\PY{+w}{ }\PY{n}{Xm\PYZus{}zero\PYZus{}in\PYZus{}G}\PY{o}{]}\PY{+w}{ }\PY{k}{at}\PY{+w}{ }\PY{n}{h}
+\PY{+w}{  }\PY{n}{exact}\PY{+w}{ }\PY{n}{h}
+\end{Verbatim}
+\end{leanblock}
+
+\begin{theorem}
+For every $c:\mathbb{N}\to\mathbb{N}$ and every $u\in\mathbb{C}$, $\pi(X_{-1}(u))^{-1}=\pi(X_{-1}(-u))$ in $G_c$.
+\end{theorem}
+
+\begin{proof}
+In any group, if $xy=1$ then $x^{-1}=y$. So it suffices to show that $\pi(X_{-1}(u))\,\pi(X_{-1}(-u))=1$. By \cref{lem:Xm_add_in_G} with $v=-u$, then $u+(-u)=0$, then \cref{lem:Xm_zero_in_G},
+\[
+\pi(X_{-1}(u))\,\pi(X_{-1}(-u))=\pi(X_{-1}(u+(-u)))=\pi(X_{-1}(0))=1.
+\]
+\end{proof}
+
+\section{Independent review}
+
+A referee model (claude-opus-5-5), which took no part in the formalization or the proof, compared the verified Lean file with the source. Verdict: \textbf{FAITHFUL}.
+
+\paragraph{Definitions.} I checked every Lean definition against the source setting.
+
+\begin{itemize}
+\item \leanname{Idx} encodes $E$ as triples $(\ell,j,k)$ with $\ell<j$ and $1\le k\le c(j)$. Here $c:\mathbb{N}\to\mathbb{N}$ is a parameter, which the formalization note permits. If $j=0$ there is no admissible $\ell$, so including $0$ in $\mathbb{N}$ adds nothing.
+\item \leanname{Gen} is the symbol set $\mathcal{X}$. $H_1,H_2$ are indexed by units of $\mathbb{C}$, and the unipotent symbols by $u\in\mathbb{C}$ and $e\in E$.
+\item \leanname{cc} is $c_{\ell j}=(-1)^{\ell+1}\binom{j-1}{\ell}(\ell+1)(j-\ell)$. The natural-number subtractions $j-1$ and $j-\ell$ are exact because $\ell<j$. The value is nonzero, so the divisions by \leanname{cc} are genuine.
+\item \leanname{wm} and \leanname{wt} match (Re:0) and (Im:0).
+\item \leanname{comm} is $aba^{-1}b^{-1}$, as in the source, and \leanname{conj} is $aba^{-1}$.
+\item Each constructor of \leanname{Rl} encodes $\mathrm{lhs}=\mathrm{rhs}$ as $\mathrm{lhs}\cdot\mathrm{rhs}^{-1}$. I compared them one by one with (H:1a) through (U:4b). Signs, exponents and the integer-power casts in (Im:5), (Im:6c) and (Im:6d) are correct. Side conditions are correct: $\ell+1=j$ for (U:1a,b); $\ell=0$ for (U:1c,d); the disjunction for (U:2); the indices $(1,2,k),(0,2,k)$ for (U:3a,b); the index $(j-1-\ell,j,k)$ with sign $(-1)^{j-\ell-1}$ for (U:4a,b).
+\item \leanname{G} is \leanname{PresentedGroup} on these relators, i.e.\ $F(\mathcal{X})/N_\mathcal{R}$.
+\end{itemize}
+
+I found no discrepancy.
+
+\paragraph{Statement.} The target states that for every $c:\mathbb{N}\to\mathbb{N}$ and every $u\in\mathbb{C}$, $X_{-1}(u)^{-1}=X_{-1}(-u)$ in $G(c)$.
+
+\begin{itemize}
+\item The source fixes $c$ to be the coefficients of $J$. Instantiating the Lean theorem at that $c$ recovers the source statement exactly, so nothing extra must be supplied.
+\item No hypothesis such as $c(2)\ge 1$ is needed here, and none is assumed.
+\item The conclusion is an equality in the presented group. It is not vacuous: it is exactly the corollary's claim.
+\end{itemize}
+
+\paragraph{Proof.} The proof has three auxiliary lemmas and a final step.
+
+\begin{itemize}
+\item \leanname{mk_rel_eq_one_in_G} is unused.
+\item \leanname{Xm_add_in_G} derives $X_{-1}(u)X_{-1}(v)=X_{-1}(u+v)$ in $G$ from relator (Re:1a). This is the first step of the source proof.
+\item \leanname{Xm_zero_in_G} derives $X_{-1}(0)=1$ from (Re:1a) at $u=v=0$, via $X(0)X(0)X(0)^{-1}=1$. This plays the role of the cited Lemma 3.1.
+\item \leanname{solution} sets $v=-u$ to get $X_{-1}(u)X_{-1}(-u)=1$, then concludes $X_{-1}(u)^{-1}=X_{-1}(-u)$ by uniqueness of inverses.
+\end{itemize}
+
+This follows the source proof directly, and each lemma states exactly the step it represents.
+
+\paragraph{Concerns.} None
+
+\appendix
+\section{Complete Lean file}
+The verified file, as checked by Lean.
+
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\PY{k+kn}{import}\PY{+w}{ }\PY{n}{Mathlib}
+\PY{k+kn}{set\PYZus{}option}\PY{+w}{ }\PY{n}{autoImplicit}\PY{+w}{ }\PY{n}{false}
+
+\PY{k+kn}{namespace}\PY{+w}{ }\PY{n}{GM}
+
+\PY{k+kn}{noncomputable}\PY{+w}{ }\PY{k+kn}{section}
+
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ Index set E = \PYZob{}(ℓ,j,k) | 1 ≤ k ≤ c(j), 0 ≤ ℓ \PYZlt{} j\PYZcb{}, encoded as triples (ℓ,j,k). }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{k+kt}{Type}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{o}{\PYZob{}}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{×}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{×}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{\PYZlt{}}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{∧}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{≤}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{+w}{ }\PY{n+nb+bp}{∧}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{+w}{ }\PY{n+nb+bp}{≤}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{t}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{o}{\PYZcb{}}
+
+\PY{k+kn}{variable}\PY{+w}{ }\PY{o}{\PYZob{}}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{\PYZcb{}}
+
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{Idx}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{n+nb+bp}{.}\PY{l+m}{1}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{Idx}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{1}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{Idx}\PY{n+nb+bp}{.}\PY{n}{k}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{n+nb+bp}{.}\PY{l+m}{2}\PY{n+nb+bp}{.}\PY{l+m}{2}
+
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ The generating symbols 𝒳. }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{inductive}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{k+kt}{Type}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{H1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{H2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{Ym}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{X}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{Y}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}
+
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{H1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{H2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Ym}\PY{+w}{ }\PY{n}{u}\PY{o}{)}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fX}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{X}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{FreeGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Y}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}
+
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ c\PYZus{}\PYZob{}ℓ j\PYZcb{} = (}\PY{l+s+sd}{\PYZhy{}}\PY{l+s+sd}{1)\PYZca{}\PYZob{}ℓ+1\PYZcb{} C(j}\PY{l+s+sd}{\PYZhy{}}\PY{l+s+sd}{1,ℓ) (ℓ+1)(j}\PY{l+s+sd}{\PYZhy{}}\PY{l+s+sd}{ℓ). }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{+w}{ }\PY{o}{:=}
+\PY{+w}{  }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{n+nb+bp}{.}\PY{n}{choose}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}
+
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ (Re:0) }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{wm}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}
+
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ (Im:0) }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{wt}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}
+\PY{+w}{  }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}
+
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ commutator (a,b) = a b a⁻¹ b⁻¹ }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{a}\PY{+w}{ }\PY{n}{b}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{a}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{b}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{a}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{b}\PY{n+nb+bp}{⁻¹}
+
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ conjugation a b a⁻¹ }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{def}\PY{+w}{ }\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{a}\PY{+w}{ }\PY{n}{b}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{a}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{b}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{a}\PY{n+nb+bp}{⁻¹}
+
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ The set of defining relators; each constructor says `lhs = rhs` via the word `lhs * rhs⁻¹`. }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{inductive}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{k+kt}{Prop}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{h1a}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH1}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{t}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{h1b}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{t}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{h2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re1a}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re1b}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}
+\PY{+w}{        }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{l+m+mi}{2}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re3}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{s}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re4a}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re4b}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re5a}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re5b}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re6a}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re6b}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re6c}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{re6d}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im1a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im1b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im2}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}
+\PY{+w}{        }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{l+m+mi}{2}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}
+\PY{+w}{          }\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{t}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im3}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{*}
+\PY{+w}{        }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im4a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{/}\PY{+w}{ }\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im4b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{n}{cc}\PY{+w}{ }\PY{n}{e}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im5a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im5b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wt}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im6a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im6b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im6c}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH1}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{im6d}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{n+nb+bp}{ˣ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{fH2}\PY{+w}{ }\PY{n}{s}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n}{s}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u1a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u1b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u1c}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{l+m+mi}{0}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u1d}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{l+m+mi}{0}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u2}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{≠}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{∨}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{k}\PY{+w}{ }\PY{n+nb+bp}{≠}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{n}{k}\PY{+w}{ }\PY{n+nb+bp}{∨}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{\PYZlt{}}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℤ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{.}\PY{n}{natAbs}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u3a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{k}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{he}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{1}\PY{o}{,}\PY{+w}{ }\PY{l+m+mi}{2}\PY{o}{,}\PY{+w}{ }\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{hf}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{o}{,}\PY{+w}{ }\PY{l+m+mi}{2}\PY{o}{,}\PY{+w}{ }\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fXm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u3b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{k}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{he}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{o}{,}\PY{+w}{ }\PY{l+m+mi}{2}\PY{o}{,}\PY{+w}{ }\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{hf}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{f}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{1}\PY{o}{,}\PY{+w}{ }\PY{l+m+mi}{2}\PY{o}{,}\PY{+w}{ }\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{comm}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{f}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fYm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u4a}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{,}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{o}{,}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fX}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+\PY{+w}{  }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{u4b}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{Idx}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{n+nb+bp}{.}\PY{l+m}{1}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{o}{,}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{o}{,}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{k}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{      }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{o}{(}\PY{n}{conj}\PY{+w}{ }\PY{o}{(}\PY{n}{wm}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{fY}\PY{+w}{ }\PY{n}{e\PYZsq{}}\PY{+w}{ }\PY{o}{(}\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{\PYZca{}}\PY{+w}{ }\PY{o}{(}\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{j}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{n}{e}\PY{n+nb+bp}{.}\PY{n}{l}\PY{+w}{ }\PY{n+nb+bp}{\PYZhy{}}\PY{+w}{ }\PY{l+m+mi}{1}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{o}{)}
+
+\PY{l+s+sd}{/\PYZhy{}\PYZhy{}}\PY{l+s+sd}{ The group G(𝔪) = ⟨𝒳 | ℛ⟩. }\PY{l+s+sd}{\PYZhy{}/}
+\PY{k+kn}{abbrev}\PY{+w}{ }\PY{n}{G}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{k+kt}{Type}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{PresentedGroup}\PY{+w}{ }\PY{o}{\PYZob{}}\PY{n}{r}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{r}\PY{o}{\PYZcb{}}
+
+\PY{k+kn}{end}
+
+\PY{k+kn}{end}\PY{+w}{ }\PY{n}{GM}
+
+
+
+\PY{k+kn}{theorem}\PY{+w}{ }\PY{n}{mk\PYZus{}rel\PYZus{}eq\PYZus{}one\PYZus{}in\PYZus{}G}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{r}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{h}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{r}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{    }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{mk}\PY{+w}{ }\PY{o}{\PYZob{}}\PY{n}{r\PYZsq{}}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{FreeGroup}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{|}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Rl}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{r\PYZsq{}}\PY{o}{\PYZcb{}}\PY{+w}{ }\PY{n}{r}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{k}{by}
+\PY{+w}{  }\PY{n}{exact}\PY{+w}{ }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{one\PYZus{}of\PYZus{}mem}\PY{+w}{ }\PY{n}{h}\PY{o}{)}
+
+\PY{k+kn}{theorem}\PY{+w}{ }\PY{n}{Xm\PYZus{}add\PYZus{}in\PYZus{}G}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{    }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{*}\PY{+w}{ }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{n}{v}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}
+\PY{+w}{      }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{n+nb+bp}{+}\PY{+w}{ }\PY{n}{v}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{k}{by}
+\PY{+w}{  }\PY{k}{have}\PY{+w}{ }\PY{n}{h}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{mk\PYZus{}eq\PYZus{}mk\PYZus{}of\PYZus{}mul\PYZus{}inv\PYZus{}mem}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Rl}\PY{n+nb+bp}{.}\PY{n}{re1a}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{n}{v}\PY{o}{)}
+\PY{+w}{  }\PY{n}{simpa}\PY{+w}{ }\PY{o}{[}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{fXm}\PY{o}{,}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{o}{,}\PY{+w}{ }\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{o}{]}\PY{+w}{ }\PY{k+kn}{using}\PY{+w}{ }\PY{n}{h}
+
+\PY{k+kn}{theorem}\PY{+w}{ }\PY{n}{Xm\PYZus{}zero\PYZus{}in\PYZus{}G}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{    }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n+nb+bp}{=}\PY{+w}{ }\PY{l+m+mi}{1}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{k}{by}
+\PY{+w}{  }\PY{k}{have}\PY{+w}{ }\PY{n}{h}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{one\PYZus{}of\PYZus{}mem}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Rl}\PY{n+nb+bp}{.}\PY{n}{re1a}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{l+m+mi}{0}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{o}{)}
+\PY{+w}{  }\PY{n}{simpa}\PY{+w}{ }\PY{o}{[}\PY{n}{add\PYZus{}zero}\PY{o}{]}\PY{+w}{ }\PY{k+kn}{using}\PY{+w}{ }\PY{n}{h}
+
+\PY{k+kn}{theorem}\PY{+w}{ }\PY{n}{solution}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℕ}\PY{+w}{ }\PY{n+nb+bp}{→}\PY{+w}{ }\PY{n}{ℕ}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n}{u}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{ℂ}\PY{o}{)}\PY{+w}{ }\PY{o}{:}
+\PY{+w}{    }\PY{o}{(}\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{n}{u}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{o}{)}\PY{n+nb+bp}{⁻¹}\PY{+w}{ }\PY{n+nb+bp}{=}
+\PY{+w}{      }\PY{o}{(}\PY{n}{PresentedGroup}\PY{n+nb+bp}{.}\PY{n}{of}\PY{+w}{ }\PY{o}{(}\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{Gen}\PY{n+nb+bp}{.}\PY{n}{Xm}\PY{+w}{ }\PY{o}{(}\PY{n}{c}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{o}{)}\PY{o}{)}\PY{+w}{ }\PY{o}{:}\PY{+w}{ }\PY{n}{GM}\PY{n+nb+bp}{.}\PY{n}{G}\PY{+w}{ }\PY{n}{c}\PY{o}{)}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{k}{by}
+\PY{+w}{  }\PY{n}{apply}\PY{+w}{ }\PY{n}{inv\PYZus{}eq\PYZus{}of\PYZus{}mul\PYZus{}eq\PYZus{}one\PYZus{}right}
+\PY{+w}{  }\PY{k}{have}\PY{+w}{ }\PY{n}{h}\PY{+w}{ }\PY{o}{:=}\PY{+w}{ }\PY{n}{Xm\PYZus{}add\PYZus{}in\PYZus{}G}\PY{+w}{ }\PY{n}{c}\PY{+w}{ }\PY{n}{u}\PY{+w}{ }\PY{o}{(}\PY{n+nb+bp}{\PYZhy{}}\PY{n}{u}\PY{o}{)}
+\PY{+w}{  }\PY{n}{rw}\PY{+w}{ }\PY{o}{[}\PY{n}{add\PYZus{}neg\PYZus{}cancel}\PY{o}{,}\PY{+w}{ }\PY{n}{Xm\PYZus{}zero\PYZus{}in\PYZus{}G}\PY{o}{]}\PY{+w}{ }\PY{k}{at}\PY{+w}{ }\PY{n}{h}
+\PY{+w}{  }\PY{n}{exact}\PY{+w}{ }\PY{n}{h}
+\end{Verbatim}
+
+\end{document}

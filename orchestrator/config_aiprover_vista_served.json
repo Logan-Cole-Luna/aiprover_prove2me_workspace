@@ -11,6 +11,20 @@
       "backend": "claude_cli",
       "model": "claude-sonnet-5-5"
     },
+    "reviewer": {
+      "backend": "claude_cli",
+      "model": "claude-opus-5-5",
+      "timeout": 2400,
+      "effort": "high",
+      "max_output_tokens": 128000
+    },
+    "writer": {
+      "backend": "claude_cli",
+      "model": "claude-opus-5-5",
+      "timeout": 2400,
+      "effort": "high",
+      "max_output_tokens": 128000
+    },
     "solver": {
       "backend": "aiprover",
       "model": "aiprover",
@@ -29,5 +43,6 @@
   "max_claude_calls": 10,
   "aiprover_lemma_concurrency": 4,
   "aiprover_session_slots": 8,
-  "aiprover_handback_after": 3
+  "aiprover_handback_after": 3,
+  "final_claude_calls": 8
 }

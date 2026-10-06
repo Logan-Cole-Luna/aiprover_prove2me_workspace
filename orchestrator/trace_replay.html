@@ -6,7 +6,7 @@
 <title>__PAGE_TITLE__</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap">
 <style>
 /*TRACE_COMMON_CSS*/
 
@@ -115,15 +115,15 @@ svg.exporting *, svg.exporting { transition: none !important; animation: none !i
 .rnode .progress-track { fill: var(--surface-2); }
 .rnode .progress { fill: var(--accent); }
 .rnode.r-captain rect.body { stroke: var(--captain); }
-.rnode.r-auditor rect.body { stroke: var(--auditor); }
+.rnode.r-auditor rect.body, .rnode.r-reviewer rect.body { stroke: var(--auditor); }
 .rnode.r-solver rect.body { stroke: var(--solver); }
 .rnode.r-lean rect.body { stroke: var(--lean); }
 .rnode.r-captain .progress { fill: var(--captain); }
-.rnode.r-auditor .progress { fill: var(--auditor); }
+.rnode.r-auditor .progress, .rnode.r-reviewer .progress { fill: var(--auditor); }
 .rnode.r-solver .progress { fill: var(--solver); }
 .rnode.r-lean .progress { fill: var(--lean); }
 .rnode .chip-role.r-captain { fill: var(--captain); }
-.rnode .chip-role.r-auditor { fill: var(--auditor); }
+.rnode .chip-role.r-auditor, .rnode .chip-role.r-reviewer { fill: var(--auditor); }
 .rnode .chip-role.r-solver { fill: var(--solver); }
 .rnode .chip-role.r-lean { fill: var(--lean); }
 .rnode.root rect.body { stroke-width: 2.2; fill: var(--accent-soft); }
@@ -150,7 +150,7 @@ svg.exporting *, svg.exporting { transition: none !important; animation: none !i
 .redge.hidden { opacity: 0; }
 .ghost { fill: none; stroke: var(--line); stroke-width: 1.3; stroke-dasharray: 3 4; }
 .redge.r-captain { stroke: var(--captain); }
-.redge.r-auditor { stroke: var(--auditor); }
+.redge.r-auditor, .redge.r-reviewer { stroke: var(--auditor); }
 .redge.r-solver { stroke: var(--solver); }
 .redge.r-lean { stroke: var(--lean); }
 .redge.repair { stroke: var(--fail); stroke-width: 1.8; }
@@ -280,7 +280,7 @@ const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").ma
 // Layout (top → bottom) -----------------------------------------------------------------
 
 // Node widths, and the text lines each kind of node shows, top to bottom.
-const NODE_WIDTH = { problem: 250, root: 250, spine: 230, lemma: 230, job: 290, attempt: 140, assemble: 260, final: 280 };
+const NODE_WIDTH = { problem: 250, root: 250, spine: 230, lemma: 230, job: 290, attempt: 156, assemble: 260, final: 280 };
 const NODE_LINES = {
   problem: ["eyebrow", "title", "subtitle"],
   root: ["eyebrow", "title", "subtitle", "status"],
@@ -327,7 +327,12 @@ function callNode(call, fields) {
 // (AIProver: one block per job, its parallel sessions below; chat solvers:
 // one lane per chain). A replan starts the next sketch's tree below; lemmas
 // it keeps from an earlier sketch appear as single nodes.
-const LEMMA_GAP = 90, KEPT_GAP = 30;
+const LEMMA_GAP = 60, KEPT_GAP = 30, SESSION_STEP = NODE_WIDTH.attempt + 14;
+// Sessions of a large job wrap into rows; a lower row is shifted by half a
+// step so the edges of the row above pass between its nodes.
+const SESSIONS_PER_ROW = 4, SESSION_ROW = 92;
+const sessionRows = count => Math.ceil(count / SESSIONS_PER_ROW);
+const sessionSpan = count => (Math.min(count, SESSIONS_PER_ROW) + (count > SESSIONS_PER_ROW ? 0.5 : 0)) * SESSION_STEP - 14;
 
 function buildLayout() {
   let y = 0;
@@ -339,7 +344,8 @@ function buildLayout() {
   addEdge(problemNode, root, "captain", { label: "statement + proof" });
 
   const sketchEvents = eventsOf("sketch_accepted");
-  const spineCalls = calls.filter(c => (c.role === "captain" || c.role === "auditor") && !isHandback(c))
+  const spineCalls = calls.filter(c => (c.role === "captain" || c.role === "auditor") && !isHandback(c)
+    && !/^report/.test(c.label))
     .sort((a, b) => a.index - b.index);
   // Captain and auditor calls up to each accepted sketch; the auditor branches right.
   const segments = sketchEvents.map((event, k) => spineCalls.filter(c => c.index < event.index
@@ -365,7 +371,7 @@ function buildLayout() {
 
   const workers = jobsByLemma.size ? sampleLanes()
     : [...new Set(calls.filter(c => c.lemma != null).map(c => c.worker))].sort((a, b) => a - b);
-  const blockWidth = Math.max(NODE_WIDTH.lemma, workers.length * LANE);
+  const chatWidth = Math.max(NODE_WIDTH.lemma, workers.length * LANE);
   const runEndTime = outcome.wall_seconds ?? runEnd;
   let winners = [], keptNodes = [];
 
@@ -391,8 +397,15 @@ function buildLayout() {
     winners = []; keptNodes = [];
     const handbackNodes = new Map(), pendingSplitEdges = [];
 
-    // Lemma columns left to right, centred under the sketch.
-    const widths = names.map(name => reused.has(name) ? NODE_WIDTH.lemma : blockWidth);
+    // Lemma columns left to right, centred under the sketch; a column is as
+    // wide as the most sessions any of its jobs ran.
+    const columnWidth = name => {
+      if (reused.has(name)) return NODE_WIDTH.lemma;
+      if (!jobsByLemma.size) return chatWidth;
+      const lanes = Math.max(0, ...calls.filter(c => isJob(c) && c.lemma === name && inSection(c)).map(jobSamples));
+      return Math.max(NODE_WIDTH.lemma, lanes ? NODE_WIDTH.job : 0, lanes ? sessionSpan(lanes) : 0);
+    };
+    const widths = names.map(columnWidth);
     // Kept lemmas sit closer together than lemmas with attempts beneath them.
     const gaps = names.map((name, i) => !i ? 0 : reused.has(name) && reused.has(names[i - 1]) ? KEPT_GAP : LEMMA_GAP);
     const total = sum(widths) + sum(gaps);
@@ -458,14 +471,15 @@ function buildLayout() {
           const label = !previousItem ? "" : isHandback(previousItem) ? "after hand-back" : transitionText(previousItem, job);
           upstream.forEach((up, u) => addEdge(up, jobNode, "solver",
             label && u === Math.floor((upstream.length - 1) / 2) ? { label } : {}));
-          // Sessions spread under the job; many sessions are packed closer.
-          const spacing = Math.min(LANE, (blockWidth + LEMMA_GAP - 20) / lanes.length);
+          const perRow = Math.min(lanes.length, SESSIONS_PER_ROW);
           upstream = lanes.map((sampleIndex, w) => {
             const outcome = outcomes[w];
-            const ay = jy + ROW;
+            const row = Math.floor(w / SESSIONS_PER_ROW), column = w % SESSIONS_PER_ROW;
+            const shift = row % 2 ? 0.5 : (lanes.length > SESSIONS_PER_ROW ? -0.5 : 0);
+            const ay = jy + ROW + row * SESSION_ROW;
             deepest = Math.max(deepest, ay);
             const node = addNode({ id: `a${job.index}s${sampleIndex}`, kind: "attempt",
-              x: x + (w - (lanes.length - 1) / 2) * spacing, y: ay,
+              x: x + (column - (perRow - 1) / 2 + shift / 2) * SESSION_STEP, y: ay,
               step: job, check: outcome.check, role: "solver", sample: sampleIndex, outcome,
               start: outcome.start, replied: outcome.end,
               end: outcome.check ? outcome.check.elapsed_seconds : outcome.end,
@@ -476,7 +490,7 @@ function buildLayout() {
             if (outcome.state === "win") winners.push(node);
             return node;
           });
-          previousItem = job; jy += 2 * ROW;
+          previousItem = job; jy += 2 * ROW + (sessionRows(lanes.length) - 1) * SESSION_ROW;
         });
         return;
       }
@@ -528,6 +542,27 @@ function buildLayout() {
         title: verification.checks?.verified ? "Verified Lean proof" : "Verification failed",
         subtitle: `axioms: ${(verification.checks?.axioms || []).join(", ") || "none"}` });
       addEdge(assemble, final, "ok", { win: !!verification.checks?.verified, label: "output" });
+      // The independent review of the verified file, then the report.
+      const review = eventsOf("final_review").at(-1);
+      if (review) {
+        const call = calls.filter(c => c.label === "review" && c.index < review.index).at(-1);
+        y += ROW;
+        const node = addNode({ id: "review", kind: "spine", role: "reviewer", x: 0, y,
+          ...(call ? callNode(call, {}) : { start: review.elapsed_seconds, replied: review.elapsed_seconds,
+            end: review.elapsed_seconds, step: review }),
+          title: "Independent review", subtitle: `reviewer · ${review.model || ""}`, review, band: "Review" });
+        addEdge(final, node, "reviewer", { label: "Lean file + source" });
+        const report = eventsOf("report").at(-1);
+        if (report) {
+          const reportCalls = calls.filter(c => /^report/.test(c.label) && c.index < report.index);
+          y += ROW;
+          const reportNode = addNode({ id: "report", kind: "spine", role: "captain", x: 0, y,
+            start: reportCalls.length ? callStart(reportCalls[0]) : report.elapsed_seconds,
+            replied: report.elapsed_seconds, end: report.elapsed_seconds, step: report, report,
+            title: "LaTeX report", subtitle: `${plural(reportCalls.length, "call")} · captain and reviewer`, band: "Report" });
+          addEdge(node, reportNode, "captain", { win: !!report.pdf });
+        }
+      }
     }
   }
 }
@@ -562,6 +597,14 @@ function nodeState(node, t) {
   if (node.kind === "assemble") {
     if (t < node.end) return { phase: "compiling", status: "lean", line: "Lean compiling…" };
     return { phase: "done", status: node.step?.ok ? "ok" : "fail", line: node.step?.ok ? "compiles, no sorry" : "Lean errors" };
+  }
+  if (node.review && t >= node.end)
+    return { phase: "done", status: node.review.verdict === "FAITHFUL" ? "ok" : "fail", line: `verdict ${node.review.verdict}` };
+  if (node.report) {
+    if (t < node.end) return { phase: "running", status: "run", line: "writing and checking", progress: null };
+    const issues = node.report.discrepancies && !/^none\.?$/i.test(node.report.discrepancies.trim());
+    return { phase: "done", status: node.report.pdf ? "ok" : "fail",
+      line: node.report.pdf ? (issues ? "PDF · corrections applied" : "PDF written") : "no PDF" };
   }
   // Model-call nodes.
   if (node.handback !== undefined && t >= node.replied) {
@@ -788,6 +831,12 @@ function describe(step) {
       : `Solver ${step.worker}'s round-${step.round} proof is kept. The other chains on this lemma stop.` };
   if (step.event === "final_verification") return { t: step.elapsed_seconds, role: "lean", title: step.checks?.verified ? "Verified" : "Verification failed",
     text: step.checks?.verified ? `The solution compiles without sorry, uses only ${(step.checks.axioms || []).join(", ")}, and its type equals the audited theorem.` : "One or more final checks failed." };
+  if (step.event === "final_review") return { t: step.elapsed_seconds, role: "reviewer", title: `Independent review: ${step.verdict}`,
+    text: step.verdict === "FAITHFUL" ? "A referee model that took no part in the run finds the definitions and statement faithful to the source."
+      : "The referee raises concerns about the faithfulness of the formal statement; see the review." };
+  if (step.event === "report") return { t: step.elapsed_seconds, role: "captain", title: step.pdf ? "Report written" : "Report incomplete",
+    text: step.pdf ? "The LaTeX report presents each statement and proof in mathematical notation beside its Lean code; the referee checked each statement against the code."
+      : (step.problems || []).join(" ") };
   if (step.event === "lemma_handback") return { t: step.elapsed_seconds, role: "captain",
     title: `Hand-back of ${step.lemma}: ${step.action}`, text: step.diagnosis || "" };
   if (step.event === "replan") return { t: step.elapsed_seconds, role: "captain", title: "Captain revises the sketch",

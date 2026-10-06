@@ -12,11 +12,11 @@
   --font-ui: "Inter", system-ui, sans-serif;
   --font-prose: "Newsreader", Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --font-display: "Fraunces", Georgia, serif;
+  --font-display: "Source Serif 4", Georgia, serif;
 }
 body { font-size: 15px; }
 .topbar { background: var(--bg); border-bottom: 1px solid var(--ink); padding: 14px 24px; }
-.topbar .thm { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; font-style: italic; letter-spacing: -0.01em; }
+.topbar .thm { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; letter-spacing: -0.01em; }
 .topbar .run { font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.72rem; }
 .btn, a.btn { border-radius: 999px; background: var(--surface); border-color: var(--line); font-size: 0.85rem; }
 .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
@@ -30,12 +30,12 @@ body { font-size: 15px; }
 .rnode text { font-family: var(--font-ui); }
 .rnode .t1 { font-family: var(--font-display); font-size: 14px; font-weight: 600; }
 .rnode .t1.mono { font-family: var(--font-mono); font-size: 12px; }
-.rnode .t2 { font-family: var(--font-prose); font-style: italic; font-size: 12px; }
+.rnode .t2 { font-family: var(--font-prose); font-size: 12px; }
 .rnode.root rect.body { fill: var(--accent-soft); }
 .redge { opacity: 0.7; stroke-width: 1.8; stroke-linecap: round; }
-.rlabel { font-family: var(--font-prose); font-style: italic; font-size: 12px; }
+.rlabel { font-family: var(--font-prose); font-size: 12px; }
 .band { fill: var(--surface-2); opacity: 0.45; }
-.band-label { font-family: var(--font-display); font-style: italic; font-weight: 600; letter-spacing: 0; font-size: 16px; fill: var(--ink); }
+.band-label { font-family: var(--font-display); font-weight: 600; letter-spacing: 0; font-size: 16px; fill: var(--ink); }
 
 .side { background: var(--surface); border-left: 1px solid var(--line); }
 .narration { padding: 22px 24px; }

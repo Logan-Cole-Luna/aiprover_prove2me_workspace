@@ -22,8 +22,13 @@ VISTA_HOST = "vista.tacc.utexas.edu"
 PARTITION = os.environ.get("VISTA_PARTITION", "gh-dev")
 NODES = os.environ.get("VISTA_NODES", "2")
 WALL_TIME = os.environ.get("VISTA_WALL_TIME", "02:00:00")
-# Trained AIProver model (Mistral format, FP8).
-CHECKPOINT = os.environ.get("VISTA_CHECKPOINT", "/work/11428/pjana/aiprover_model")
+# AIProver versions a run may select: the trained model (Mistral format, FP8)
+# and the base model (HF format, per-expert; `$SCRATCH` expands on Vista).
+CHECKPOINTS = {
+    "trained": os.environ.get("VISTA_CHECKPOINT", "/work/11428/pjana/aiprover_model"),
+    "base": os.environ.get("VISTA_CHECKPOINT_BASE",
+                           "$SCRATCH/aiprover_ckpt/leanstral_base_unpacked"),
+}
 JOB_NAME = "aiprover_srv"  # `#SBATCH -J` in scripts/serve_aiprover_vista.sbatch
 
 logger = logging.getLogger(__name__)
@@ -64,15 +69,15 @@ def server_jobs() -> dict[str, str] | None:
     return jobs
 
 
-def submit_server() -> str | None:
-    """Submit a model server job; return its id, or None on failure."""
+def submit_server(checkpoint: str) -> str | None:
+    """Submit a model server job for `checkpoint`; return its id, or None on failure."""
     code, output = remote(f"cd $WORK/aiprover_serve && scripts/submit_aiprover_vista.sh "
-                          f"{CHECKPOINT} {PARTITION} {NODES} {WALL_TIME}", timeout=120)
+                          f"{checkpoint} {PARTITION} {NODES} {WALL_TIME}", timeout=120)
     match = re.search(r"Submitted batch job (\d+)", output)
     if code != 0 or not match:
         logger.error(f"Vista submission failed: {output[-500:]}")
         return None
-    logger.info(f"submitted Vista server job {match.group(1)} "
+    logger.info(f"submitted Vista server job {match.group(1)} for {checkpoint} "
                 f"({PARTITION}, {NODES} nodes, {WALL_TIME})")
     return match.group(1)
 

@@ -8,6 +8,7 @@ All Lean checking is local, in the prove2me workspace environment.
 """
 
 import fcntl
+import hashlib
 import json
 import logging
 import re
@@ -19,11 +20,13 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from . import library as libraries
 from . import prompts
 from .agents import AgentCallError, AgentPool, Completion, build_agent
 from .aiprover_agent import (AIProverAgent, extract_lemma_proof, failed_attempt,
                              split_declarations, wrapped_lemma_proof)
 from .lean_check import LeanChecker, forbidden_constructs, nonstandard_axioms
+from .report import ReportBuilder, escape
 from .resume import ResumeState, restore_state
 from .structures import (Formalization, Lemma, Sketch, drop_imports, extract_tag,
                          normalize, parse_lemmas, parse_statement, strip_leading_by)
@@ -61,6 +64,14 @@ ALGORITHM = [
      "description": "Splice proofs into the sketch and verify: compiles, no `sorry`, "
                     "only standard axioms, and the solution's type equals the target "
                     "theorem's type (checked in a module importing both)."},
+    {"stage": "review", "actor": "reviewer (independent model)",
+     "description": "Referee the verified file against the source: definitions, "
+                    "statement, and the proof's correspondence with the source proof. "
+                    "A run is proved only with verdict FAITHFUL."},
+    {"stage": "report", "actor": "writer, reviewer",
+     "description": "LaTeX report and PDF: the writer states the mathematics, the "
+                    "Lean code is inserted verbatim, the reviewer checks each statement "
+                    "against its Lean code, and the writer corrects the discrepancies."},
 ]
 
 
@@ -87,6 +98,14 @@ class Config:
     # Completed failed jobs after which a lemma is handed back to the captain
     # (prove it, split it, restate it, or retry); 0 = never.
     aiprover_handback_after: int = 0
+    # Claude calls added to `max_claude_calls` for the final review and the
+    # report, so a run that spent its budget on proving is still reviewed.
+    final_claude_calls: int = 8
+    # Library of verified results the run builds on (a Lean file; see
+    # library.py); overrides the problem's `library` field. With
+    # `extend_library`, a reviewed proof is appended to it.
+    library: str = ""
+    extend_library: bool = False
 
 
 def slug_from_problem(row: dict) -> str:
@@ -117,10 +136,16 @@ class Orchestration:
         self.lean = LeanChecker(self.workspace, config.lean_parallel, config.lean_timeout)
         self.slug = slug_from_problem(row)
         self.auditor_system = prompts.auditor_system(self.workspace)
-        agents = {role: build_agent(spec) for role, spec in config.agents.items()}
+        # The reviewer and the report writer default to fresh agents of the
+        # captain's model.
+        specs = {"reviewer": config.agents.get("captain", {}),
+                 "writer": config.agents.get("captain", {}), **config.agents}
+        agents = {role: build_agent(spec) for role, spec in specs.items()}
         system_prompts = {"captain": prompts.CAPTAIN_SYSTEM,
                           "auditor": self.auditor_system,
-                          "solver": prompts.SOLVER_SYSTEM}
+                          "solver": prompts.SOLVER_SYSTEM,
+                          "reviewer": prompts.REVIEWER_SYSTEM,
+                          "writer": prompts.WRITER_SYSTEM}
         trace_path = self.result_dir / "trace.json"
         previous = Trace.load(trace_path) if resume else None
         if resume and previous is None:
@@ -150,6 +175,8 @@ class Orchestration:
                                 system_prompt_ids={text: key for key, text
                                                    in system_prompts.items()},
                                 max_claude_calls=config.max_claude_calls)
+        self.library_path = config.library or row.get("library", "")
+        self.library = libraries.load(self.library_path) if self.library_path else ""
         self._file_counter = self.state.lean_checks_done
         self._counter_lock = threading.Lock()
         previous_outcome = (previous or {}).get("outcome") or {}
@@ -180,6 +207,25 @@ class Orchestration:
 
     def _decision(self, event: str, **fields) -> None:
         self.trace.add("decision", event=event, **fields)
+
+    def _check_library(self) -> None:
+        """The library must compile on its own without `sorry`."""
+        result = self._check("library", FILE_HEADER + self.library + "\n")
+        if not result.ok or result.has_sorry_warning:
+            raise RuntimeError(f"library {self.library_path} does not compile cleanly: "
+                               + (result.error_report()[:500] if not result.ok else "sorry"))
+
+    def _own_definitions(self, form: Formalization) -> str:
+        """The run's definitions without the library prefix."""
+        if self.library and form.definitions.startswith(self.library):
+            return form.definitions[len(self.library):].strip()
+        return form.definitions
+
+    def _library_chars(self) -> int:
+        """Length of the library prefix the run's formalization was built on."""
+        compiled = [step for step in self.trace.document["steps"]
+                    if step.get("event") == "formalization_compiled"]
+        return compiled[-1].get("library_chars", 0) if compiled else len(self.library)
 
     def _standalone(self, form: Formalization, body: str) -> str:
         return f"{FILE_HEADER}{form.definitions}\n\n{form.preamble}\n\n{body}\n"
@@ -213,7 +259,7 @@ class Orchestration:
             if form.verdict.startswith("FAITHFUL"):
                 return form
             feedback = prompts.FORMALIZE_FEEDBACK_TEMPLATE.format(
-                definitions=form.definitions, statement=form.statement,
+                definitions=self._own_definitions(form), statement=form.statement,
                 problems="Auditor read-back:\n" + form.readback
                          + "\n\nCaptain review:\n" + form.issues)
             last_form, form = form, None
@@ -221,9 +267,10 @@ class Orchestration:
 
     def _formalize_until_compiles(self, feedback: str) -> Formalization:
         for repair in range(self.config.max_repairs + 1):
-            reply = self._captain(prompts.FORMALIZE_TEMPLATE.format(
+            template = prompts.FORMALIZE_LIBRARY_TEMPLATE if self.library else prompts.FORMALIZE_TEMPLATE
+            reply = self._captain(template.format(
                 informal_statement=self.row["informal_statement"],
-                informal_proof=self.row["informal_proof"],
+                informal_proof=self.row["informal_proof"], library=self.library,
                 theorem_name=self.slug, feedback=feedback), phase=f"formalize{repair}")
             definitions = drop_imports(extract_tag(reply, "definitions"))
             statement_block = drop_imports(extract_tag(reply, "statement"))
@@ -236,15 +283,19 @@ class Orchestration:
             except ValueError as e:
                 problems.append(str(e))
             if not problems:
-                form = Formalization(definitions, preamble, name, signature,
+                # The library is the prefix of the definitions, so every file
+                # the run checks contains it.
+                full = f"{self.library}\n\n{definitions}".strip() if self.library else definitions
+                form = Formalization(full, preamble, name, signature,
                                      notes=extract_tag(reply, "notes"))
                 result = self._check("formalize", self._standalone(form, form.statement),
                                      repair=repair)
                 if result.ok:
                     logger.info(f"formalization compiles (repair {repair})")
                     self._decision("formalization_compiled", repair=repair,
-                                   definitions=definitions, preamble=preamble,
-                                   statement=form.statement, notes=form.notes)
+                                   definitions=form.definitions, preamble=preamble,
+                                   statement=form.statement, notes=form.notes,
+                                   library=self.library_path, library_chars=len(self.library))
                     return form
                 problems.append("Lean errors:\n" + result.error_report())
             logger.info(f"formalization repair {repair}: {problems[0][:200]}")
@@ -298,7 +349,8 @@ class Orchestration:
     def _sketch_body(self, form: Formalization, sketch: Sketch,
                      use_proofs: bool = False) -> str:
         parts = []
-        for lemma in sketch.lemmas:
+        lemmas = dependency_order(sketch.lemmas) if use_proofs else sketch.lemmas
+        for lemma in lemmas:
             if use_proofs and lemma.proved:
                 if lemma.helpers:
                     parts.append(lemma.helpers)
@@ -398,6 +450,7 @@ class Orchestration:
         solver: AIProverAgent = self.agents.agents["solver"]
         sketch_lock = threading.Lock()     # sketch.lemmas, statements, session counts
         sessions_in_flight: dict[str, int] = {}
+        in_handback: set[str] = set()      # lemmas waiting on a captain reply
         max_attempts = max(1, self.config.aiprover_attempts_per_lemma)
         concurrency = self.config.aiprover_lemma_concurrency or len(pending)
 
@@ -414,6 +467,7 @@ class Orchestration:
             waiting = sorted((other for other in sketch.lemmas
                               if other is not lemma and not other.proved
                               and other.name not in sessions_in_flight
+                              and other.name not in in_handback
                               and other.attempts < max_attempts),
                              key=weight, reverse=True)
             rivals = waiting[:max(0, concurrency - len(sessions_in_flight) - 1)]
@@ -432,7 +486,15 @@ class Orchestration:
             elif self.agents.claude_budget_left() < 2:
                 logger.info(f"{lemma.name}: Claude budget too low for a hand-back")
             else:
-                self._handback(form, sketch, lemma, sketch_lock, submit)
+                # A hand-back takes minutes against a job's 90, so the lemma
+                # gives up its share of the slots meanwhile.
+                with sketch_lock:
+                    in_handback.add(lemma.name)
+                try:
+                    self._handback(form, sketch, lemma, sketch_lock, submit)
+                finally:
+                    with sketch_lock:
+                        in_handback.discard(lemma.name)
 
         def attempt(lemma: Lemma) -> None:
             # The hand-back comes before the next job, so a lemma restored with
@@ -726,6 +788,106 @@ class Orchestration:
         self._decision("final_verification", checks=checks, solution=standalone)
         return standalone, checks
 
+    # Phase 6–7: review and report -----------------------------------------
+
+    def _earlier_decision(self, event: str, solution: str) -> dict | None:
+        """A decision of a previous session on the same solution, if any."""
+        digest = hashlib.sha256(solution.encode()).hexdigest()
+        return next((step for step in reversed(self.trace.document["steps"])
+                     if step.get("event") == event and step.get("solution_sha256") == digest),
+                    None)
+
+    def final_review(self, form: Formalization, standalone: str) -> dict:
+        """Independent referee of the verified file against the source."""
+        earlier = self._earlier_decision("final_review", standalone)
+        if earlier:
+            logger.info(f"final review restored: {earlier['verdict']}")
+            return {key: earlier[key] for key in earlier if key in REVIEW_FIELDS}
+        reply = self.agents.complete(prompts.FINAL_REVIEW_TEMPLATE.format(
+            informal_statement=self.row["informal_statement"],
+            informal_proof=self.row["informal_proof"],
+            target_statement=f"{form.definitions}\n\n{form.preamble}\n\n{form.statement}",
+            lean_solution=standalone), role="reviewer",
+            system_prompt=prompts.REVIEWER_SYSTEM, phase="review")
+        review = {key: extract_tag(reply, key).strip() for key in
+                  ("definitions_review", "statement_review", "proof_review", "concerns")}
+        review["verdict"] = extract_tag(reply, "verdict").strip().upper() or "UNCERTAIN"
+        review["model"] = self.agents.agents["reviewer"].model
+        logger.info(f"final review: verdict {review['verdict']}")
+        self._decision("final_review", solution_sha256=hashlib.sha256(
+            standalone.encode()).hexdigest(), **review)
+        return review
+
+    def credits(self, sketch: Sketch) -> dict[str, str]:
+        """Who proved each declaration of the solution, from the trace."""
+        steps = self.trace.document["steps"]
+        solver_model = self.agents.agents["solver"].model
+        credits = {}
+        for lemma in sketch.lemmas:
+            proved = next((step for step in reversed(steps) if step.get("event") == "lemma_proved"
+                           and step.get("lemma") == lemma.name), None)
+            if proved is None:
+                continue
+            if proved.get("worker") == "captain":
+                text = "proved by the captain after a hand-back"
+            else:
+                jobs = [step for step in steps[:proved["index"]] if step.get("kind") == "model_call"
+                        and step.get("lemma") == lemma.name and step.get("backend") == "aiprover"]
+                text = (f"proved by AIProver, job {len(jobs)}, session {proved['worker']}" if jobs
+                        else f"proved by solver {proved['worker']} ({solver_model}), "
+                             f"round {proved.get('round', 0)}")
+            credits[lemma.name] = text
+            for _, helper, _ in split_declarations(lemma.helpers):
+                credits[helper] = f"helper of {lemma.name}, {text}"
+        credits[MAIN_NAME] = "main proof from the captain's sketch"
+        return credits
+
+    def report(self, form: Formalization, sketch: Sketch, standalone: str,
+               checks: dict, review: dict) -> dict:
+        """LaTeX report and PDF in results/<run_id>/report."""
+        earlier = self._earlier_decision("report", standalone)
+        if earlier and earlier.get("pdf") and Path(earlier["pdf"]).exists():
+            logger.info("report restored")
+            return {key: earlier[key] for key in ("pdf", "compiled", "discrepancies", "problems")}
+        environment = self.trace.document.get("lean_environment", {})
+        axioms = ", ".join(f"\\texttt{{{escape(name)}}}" for name in checks.get("axioms") or [])
+        summary_rows = [
+            ("Source", escape(f"{self.row.get('source_subset') or self.row.get('source_name')}, "
+                              f"{self.row['uuid']}")),
+            ("Lean", escape(f"{environment.get('toolchain', '')}, Mathlib "
+                            f"{environment.get('mathlib', '')[:10]}")),
+            ("Machine checks", "compiles; no \\texttt{sorry}; statement matches target; "
+                               "module build"),
+            ("Axioms", axioms),
+            ("Independent review", escape(f"{review.get('verdict')} ({review.get('model')})")),
+            ("Agents", escape(f"captain {self.agents.agents['captain'].model}; solvers "
+                              f"{self.agents.agents['solver'].model}; report "
+                              f"{self.agents.agents['writer'].model}")),
+            ("Run", f"\\texttt{{{escape(self.run_id)}}}"),
+        ]
+        library_names = sorted(libraries.declared_names(form.definitions[:self._library_chars()]))
+        if library_names:
+            summary_rows.insert(1, ("Library", escape(f"{self.library_path}, "
+                                                      f"{len(library_names)} declarations")))
+        builder = ReportBuilder(self.result_dir / "report", self.slug, self.row,
+                                form.theorem_name, form.statement, standalone,
+                                self.credits(sketch), summary_rows, review, library_names)
+
+        def complete(prompt: str, role: str, phase: str) -> str:
+            return self.agents.complete(prompt, role=role, phase=phase,
+                                        system_prompt=(prompts.REVIEWER_SYSTEM if role == "reviewer"
+                                                       else prompts.WRITER_SYSTEM))
+        try:
+            record = builder.build(complete)
+        except (OSError, subprocess.SubprocessError) as e:
+            record = {"pdf": None, "compiled": False, "discrepancies": "",
+                      "problems": [f"report tooling failed: {e}"]}
+        logger.info(f"report: {'PDF written' if record['pdf'] else 'no PDF'}"
+                    + (f"; {len(record['problems'])} problem(s)" if record["problems"] else ""))
+        self._decision("report", solution_sha256=hashlib.sha256(standalone.encode()).hexdigest(),
+                       **record)
+        return record
+
     def _verify_modules(self, form: Formalization, body: str) -> dict:
         """Write prove2me-layout modules and check the solution against the target.
 
@@ -777,6 +939,10 @@ class Orchestration:
             logger.info(f"resuming from step {state.restored_steps}: {state.describe()}")
             self._decision("resumed", **state.describe())
         try:
+            if self.library_path:
+                summary["library"] = {"path": self.library_path, "chars": self._library_chars()}
+            if self.library and state.formalization is None:
+                self._check_library()
             if state.faithful:
                 form = state.formalization
             else:
@@ -813,9 +979,33 @@ class Orchestration:
             with self._timed("assemble"):
                 standalone, checks = self.assemble(form, sketch)
             summary["checks"] = checks
-            summary["status"] = "proved" if checks["verified"] else "assembly_failed"
+            summary["status"] = "assembly_failed"
             (self.result_dir / f"{self.slug}_standalone.lean").write_text(standalone)
+            if not checks["verified"]:
+                return summary
             self._export_jiatu_row(standalone)
+            # A verified proof stands even if the review or the report cannot
+            # be completed; its status then says so.
+            summary["status"] = "review_flagged"
+            if self.agents.max_claude_calls:
+                self.agents.max_claude_calls = (self.agents.claude_calls
+                                                + self.config.final_claude_calls)
+            with self._timed("review"):
+                review = self.final_review(form, standalone)
+            summary["review"] = review
+            if review["verdict"] == "FAITHFUL":
+                summary["status"] = "proved"
+            with self._timed("report"):
+                summary["report"] = self.report(form, sketch, standalone, checks, review)
+            if self.config.extend_library and self.library_path and summary["status"] == "proved":
+                record = libraries.extend(self.library_path, standalone, self._library_chars(),
+                                          form.theorem_name,
+                                          f"{self.run_id} ({self.row['uuid']}), proved")
+                logger.info(f"library {self.library_path}: " + (
+                    f"added {len(record['declarations'])} declarations" if record["added"]
+                    else f"not extended: {record['problem'][:200]}"))
+                self._decision("library_extended", library=self.library_path, **record)
+                summary["library_extension"] = record
             return summary
         except AgentCallError as e:
             summary.update(error=str(e), error_kind="infrastructure")
@@ -840,7 +1030,8 @@ class Orchestration:
             summary["lean_attempt_files"] = self._file_counter
             (self.result_dir / "summary.json").write_text(json.dumps(summary, indent=2))
             self.trace.finish({key: summary.get(key) for key in
-                               ("status", "error", "error_kind", "checks", "wall_seconds", "phase_seconds",
+                               ("status", "error", "error_kind", "checks", "review", "report",
+                                "wall_seconds", "phase_seconds",
                                 "calls_by_role", "usage_by_model", "lean_attempt_files")})
 
     def _export_jiatu_row(self, standalone: str) -> None:
@@ -864,6 +1055,28 @@ class Orchestration:
                 orchestration.phase_times[phase] = (orchestration.phase_times.get(phase, 0.0)
                                                     + time.time() - self.start)
         return _Timer()
+
+
+REVIEW_FIELDS = ("definitions_review", "statement_review", "proof_review", "concerns",
+                 "verdict", "model")
+
+
+def dependency_order(lemmas: list[Lemma]) -> list[Lemma]:
+    """Lemmas in sketch order, except that each proved lemma follows the
+    lemmas its proof uses. A proof kept across a replan may use a lemma the
+    new sketch places after it. A cycle leaves the rest in sketch order."""
+    def uses(lemma: Lemma, other: Lemma) -> bool:
+        text = f"{lemma.helpers}\n{lemma.proof}" if lemma.proved else ""
+        return re.search(rf"(?<![\w.']){re.escape(other.name)}(?![\w'])", text) is not None
+
+    remaining, ordered = list(lemmas), []
+    while remaining:
+        ready = next((lemma for lemma in remaining
+                      if not any(uses(lemma, other) for other in remaining if other is not lemma)),
+                     remaining[0])
+        remaining.remove(ready)
+        ordered.append(ready)
+    return ordered
 
 
 def failed_lemma_text(lemma: Lemma) -> str:

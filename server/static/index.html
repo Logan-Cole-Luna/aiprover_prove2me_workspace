@@ -6,7 +6,7 @@
 <title>AIProver Orchestration</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 /* Matches the editorial theme of the trace replay pages (orchestrator/trace_replay.html). */
 :root {
@@ -16,7 +16,7 @@
   --ok: #2f7d4d; --bad: #b3261e; --code-bg: #f9f4ea;
   --font-ui: "Inter", system-ui, sans-serif;
   --font-prose: "Newsreader", Georgia, serif;
-  --font-display: "Fraunces", Georgia, serif;
+  --font-display: "Source Serif 4", Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 * { box-sizing: border-box; }
@@ -24,8 +24,8 @@ body {
   margin: 0; background: var(--bg); color: var(--text);
   font: 15px/1.55 var(--font-ui);
 }
-main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
-h1 { font-family: var(--font-display); font-style: italic; font-weight: 700;
+main { max-width: 1680px; margin: 0 auto; padding: 32px clamp(16px, 3vw, 40px) 64px; }
+h1 { font-family: var(--font-display); font-weight: 700;
      font-size: 1.9rem; letter-spacing: -0.01em; line-height: 1.15; margin: 0 0 8px; }
 h2 { font-size: 0.74rem; margin: 0 0 12px; text-transform: uppercase;
      letter-spacing: .14em; font-weight: 700; color: var(--accent); }
@@ -35,6 +35,8 @@ section { background: var(--panel); border: 1px solid var(--border);
           border-radius: 12px; padding: 18px 20px; margin-bottom: 16px;
           box-shadow: 0 1px 3px rgba(60, 40, 10, 0.06); }
 label { display: block; font-weight: 600; margin: 10px 0 4px; }
+label.check { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+label.check input { width: auto; margin: 0; }
 textarea, input, select {
   width: 100%; padding: 8px 10px; font: inherit; color: var(--text);
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
@@ -54,18 +56,32 @@ button.plain:hover { border-color: var(--accent); color: var(--accent); backgrou
 .tabs button:hover { color: var(--accent); border-color: var(--accent); background: var(--panel); }
 .tabs button.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 600; }
 .hidden { display: none; }
+.models { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 24px; }
+.models .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.models .pick select:first-child { grid-column: 1 / -1; }
+.models h3 { margin: 10px 0 0; font-size: 0.95rem; }
+.models .role-note { color: var(--muted); font-size: 0.8rem; margin: 0 0 6px; }
+td.models-cell { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+td.export { width: 1%; }
+a.export { display: inline-flex; padding: 4px; border-radius: 6px; color: var(--muted); }
+a.export:hover { color: var(--accent); background: var(--accent-soft); }
+small.models-note { color: var(--muted); display: block; margin-top: 4px; }
 .health span { margin-right: 16px; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
        margin-right: 6px; background: var(--muted); }
 .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+/* The table fills the page; below its minimum width the wrapper scrolls. */
+table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
          vertical-align: top; }
 th { color: var(--muted); font-weight: 600; font-size: 0.74rem; text-transform: uppercase;
      letter-spacing: .1em; border-bottom-color: var(--text); }
 td:first-child { font-family: var(--font-mono); font-size: 0.82rem; }
 tr.selected { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
-td.title { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td:first-child { white-space: nowrap; }
+td.title { min-width: 180px; overflow-wrap: anywhere; }
+td.actions { white-space: nowrap; width: 1%; }
+td.actions .row { flex-wrap: nowrap; }
 .table-wrap { overflow-x: auto; }
 pre#log {
   background: var(--code-bg); padding: 12px; border: 1px solid var(--border);
@@ -80,8 +96,7 @@ a { color: var(--accent); }
 <body>
 <main>
   <h1>AIProver orchestration</h1>
-  <p class="sub">Formalize and prove an informal result in Lean 4: captain and auditor
-    Sonnet 5.5 (at most 10 calls), solvers AIProver on TACC Vista. Submissions run after approval, one at a time; the Vista model server is started on demand.</p>
+  <p class="sub">Formalize and prove an informal result in Lean 4</p>
 
   <section id="login">
     <h2>Access token</h2>
@@ -120,6 +135,15 @@ a { color: var(--accent); }
         <label for="uuid">JiatuBook problem</label>
         <select id="uuid"></select>
       </div>
+      <label for="library">Library of verified results (optional)</label>
+      <div class="row">
+        <select id="library"><option value="">none</option></select>
+        <input type="file" id="library-file" accept=".lean" aria-label="Upload a library file">
+      </div>
+      <label class="check"><input type="checkbox" id="extend-library"> Add the result to the library once proved and reviewed</label>
+      <small class="models-note">A library is a Lean file that compiles on its own, without <code>sorry</code>. The run uses its definitions and may cite its theorems instead of proving them again.</small>
+      <div class="models" id="models"></div>
+      <small class="models-note" id="models-note">Roles that use AIProver must use the same version.</small>
       <div class="row" style="margin-top:12px">
         <button id="submit">Submit</button>
         <span id="submit-message"></span>
@@ -130,7 +154,7 @@ a { color: var(--accent); }
       <h2>Runs</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Run</th><th>Problem</th><th>State</th><th>Result</th><th></th></tr></thead>
+          <thead><tr><th>Run</th><th>Problem</th><th>Models</th><th>State</th><th>Result</th><th></th><th></th></tr></thead>
           <tbody id="runs"></tbody>
         </table>
       </div>
@@ -145,7 +169,12 @@ a { color: var(--accent); }
 </main>
 <script>
 const $ = id => document.getElementById(id);
-let selected = null, stream = null, me = null, timers = null;
+let selected = null, stream = null, me = null, timers = null, catalog = null;
+// Roles with a model choice, from GET /api/models.
+let ROLES = [];
+const DOWNLOAD_ICON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>`;
 
 async function api(path, options = {}) {
   const response = await fetch(path, {credentials: "same-origin",
@@ -169,8 +198,81 @@ async function start() {
   const problems = await api("/api/problems");
   $("uuid").innerHTML = problems.map(p =>
     `<option value="${p.uuid}">${p.uuid}${p.label ? " — " + escapeHtml(p.label) : ""}</option>`).join("");
+  const libraries = await api("/api/libraries").catch(() => []);
+  $("library").innerHTML = `<option value="">none</option>` + libraries.map(l =>
+    `<option value="${escapeHtml(l.name)}">${escapeHtml(l.name)} (${l.declarations} declarations)</option>`).join("");
   refreshHealth(); refreshRuns();
+  // The run list does not depend on the model choices, so it loads either way.
+  if (!catalog) {
+    try { catalog = await api("/api/models"); buildPickers(); }
+    catch (e) { $("models-note").innerHTML = `<span class="error">Model choices unavailable: ${escapeHtml(e.message)}</span>`; }
+  }
   if (!timers) timers = [setInterval(refreshRuns, 10000), setInterval(refreshHealth, 60000)];
+}
+
+// Provider choices: Claude (model and reasoning level follow) or an AIProver version.
+function providerOptions() {
+  return `<option value="claude">Claude</option>` + catalog.aiprover.map(v =>
+    `<option value="aiprover:${v.model}">${escapeHtml(v.label)}</option>`).join("");
+}
+
+function buildPickers() {
+  ROLES = catalog.roles.map(r => r.role);
+  $("models").innerHTML = catalog.roles.map(r => `<div><h3>${escapeHtml(r.label)}</h3>
+    <p class="role-note">${escapeHtml(r.description)}</p><div class="pick" id="pick-${r.role}"></div></div>`).join("");
+  for (const role of ROLES) {
+    const box = $("pick-" + role);
+    box.innerHTML = `<select aria-label="${role} model" data-field="provider">${providerOptions()}</select>
+      <select aria-label="${role} Claude model" data-field="model">${catalog.claude.map(m =>
+        `<option value="${m.model}">${escapeHtml(m.label)}</option>`).join("")}</select>
+      <select aria-label="${role} reasoning level" data-field="effort"></select>`;
+    box.addEventListener("change", () => syncPicker(role));
+    const wanted = catalog.default[role];
+    box.querySelector('[data-field="provider"]').value =
+      wanted.provider === "claude" ? "claude" : `aiprover:${wanted.model}`;
+    if (wanted.provider === "claude") box.querySelector('[data-field="model"]').value = wanted.model;
+    syncPicker(role, wanted.effort);
+  }
+}
+
+// Show the Claude model and reasoning level only for Claude; a model without
+// reasoning levels has no level to choose.
+function syncPicker(role, effort) {
+  const box = $("pick-" + role);
+  const claude = box.querySelector('[data-field="provider"]').value === "claude";
+  const model = box.querySelector('[data-field="model"]');
+  const level = box.querySelector('[data-field="effort"]');
+  const efforts = claude ? catalog.claude.find(m => m.model === model.value).efforts : [];
+  const keep = effort ?? level.value;
+  level.innerHTML = `<option value="">default reasoning</option>` +
+    efforts.map(e => `<option value="${e}">${e}</option>`).join("");
+  level.value = efforts.includes(keep) ? keep : "";
+  model.classList.toggle("hidden", !claude);
+  level.classList.toggle("hidden", !efforts.length);
+}
+
+function selection(role) {
+  const box = $("pick-" + role);
+  const [provider, version] = box.querySelector('[data-field="provider"]').value.split(":");
+  if (provider === "aiprover") return {provider, model: version, effort: ""};
+  return {provider, model: box.querySelector('[data-field="model"]').value,
+          effort: box.querySelector('[data-field="effort"]').value};
+}
+
+function modelLabel(choice) {
+  if (!choice) return "";
+  if (choice.provider === "aiprover") {
+    return (catalog?.aiprover.find(v => v.model === choice.model) || {label: choice.model}).label;
+  }
+  const label = (catalog?.claude.find(m => m.model === choice.model) || {label: choice.model}).label;
+  return choice.effort ? `${label}, ${choice.effort}` : label;
+}
+
+// One line per role the run records, in the order of the form.
+function modelsHTML(agents) {
+  if (!agents) return "";
+  const order = ROLES.length ? ROLES.filter(role => role in agents) : Object.keys(agents);
+  return order.map(role => `${role}: ${escapeHtml(modelLabel(agents[role]))}`).join("<br>");
 }
 
 function escapeHtml(text) {
@@ -219,10 +321,14 @@ async function refreshRuns() {
     <tr class="${run.run_id === selected ? "selected" : ""}">
       <td><a href="#" data-open="${run.run_id}">${run.run_id}</a></td>
       <td class="title" title="${escapeHtml(run.title)}">${escapeHtml(run.title)}</td>
+      <td class="models-cell">${modelsHTML(run.agents)}</td>
       <td>${stateText(run)}</td>
       <td>${run.status ? escapeHtml(run.status) : ""}</td>
-      <td>${actions(run)}</td>
-    </tr>`).join("") || `<tr><td colspan="5" class="sub">No runs yet.</td></tr>`;
+      <td class="export"><a class="export" href="/api/runs/${run.run_id}/export" download
+        title="Export ${run.run_id} (problem, Lean files, report, trace, logs)"
+        aria-label="Export ${run.run_id}">${DOWNLOAD_ICON}</a></td>
+      <td class="actions">${actions(run)}</td>
+    </tr>`).join("") || `<tr><td colspan="7" class="sub">No runs yet.</td></tr>`;
   if (selected) {
     const run = runs.find(r => r.run_id === selected);
     if (run) renderLinks(run);
@@ -282,8 +388,13 @@ $("submit").onclick = async () => {
   const body = textMode
     ? {statement: $("statement").value, proof: $("proof").value}
     : {uuid: $("uuid").value};
+  for (const role of ROLES) body[role] = selection(role);
   $("submit-message").textContent = "";
   try {
+    const upload = $("library-file").files[0];
+    if (upload) body.library_text = await upload.text();
+    else if ($("library").value) body.library = $("library").value;
+    body.extend_library = $("extend-library").checked;
     const result = await api("/api/runs", {method: "POST", body: JSON.stringify(body)});
     $("submit-message").textContent = `Submitted ${result.run_id}; awaiting approval.`;
     openRun(result.run_id);

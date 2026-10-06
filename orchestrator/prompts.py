@@ -70,6 +70,47 @@ the Lean encoding.
 ...
 </notes>"""
 
+FORMALIZE_LIBRARY_TEMPLATE = """Formalize the following result in Lean 4, \
+building on the library below.
+
+<library>
+{library}
+</library>
+
+The library is fixed and verified: its definitions encode the setting of the \
+result, and its theorems are proved. Use its definitions for every object \
+they encode; do not restate, rename or redefine anything it declares. Its \
+theorems may be used in the proof later; they are not part of the statement.
+
+<informal_statement>
+{informal_statement}
+</informal_statement>
+
+<informal_proof>
+{informal_proof}
+</informal_proof>
+{feedback}
+Produce:
+- <definitions>: only the definitions the statement needs that the library \
+lacks (often none). Only `inductive`, `structure`, `def`, `abbrev`, \
+`namespace`/`end`, `open` and `notation` declarations; no theorems, no \
+`sorry`, no `axiom`. Names must differ from the library's.
+- <statement>: optional `open` lines, then exactly one declaration \
+`theorem {theorem_name} <binders> : <type> := by sorry`, at top level (not \
+inside a namespace).
+- <notes>: one short paragraph mapping each part of the source statement to \
+the Lean encoding, naming the library definitions used.
+
+<definitions>
+...
+</definitions>
+<statement>
+...
+</statement>
+<notes>
+...
+</notes>"""
+
 FORMALIZE_FEEDBACK_TEMPLATE = """
 Your previous formalization is below, followed by the problems found with it. \
 Fix every problem.
@@ -123,6 +164,9 @@ by a solver agent that sees the definitions, the lemma, and the statements \
 of the lemmas before it.
 
 Guidelines:
+- Theorems already proved in the definitions (a library of verified \
+results) may be used directly in lemmas and in the main proof; do not \
+restate them as lemmas.
 - Put every nontrivial step, in particular every induction over a \
 derivation or over syntax, into its own lemma. Keep lemmas small and \
 self-contained; a solver sees only earlier lemmas.
@@ -318,7 +362,7 @@ Your previous attempt failed. Fix it.
 AIPROVER_LEMMA_TEMPLATE = """Prove the lemma `{lemma_name}`, whose Lean statement \
 is fixed below. It is one step in the proof of the following result; the Lean \
 definitions in the Setting encode that result's objects and rules, and the \
-earlier lemmas given there may be used as facts.
+theorems and earlier lemmas given there may be used as facts.
 
 {informal_statement}"""
 
@@ -334,3 +378,209 @@ them inline as the principles require. Reply with the read-back only.
 def auditor_system(workspace: Path) -> str:
     """The prove2me auditor playbook, used verbatim as the system prompt."""
     return (Path(workspace) / "references" / "mission_auditor.md").read_text()
+
+
+# Final review and report ----------------------------------------------------
+
+REVIEWER_SYSTEM = f"""You are an independent referee of a machine-checked \
+formal proof. You did not write it and have no stake in its acceptance. Lean \
+has already verified that the file compiles, contains no `sorry`, uses only \
+the standard axioms, and that `solution` has exactly the type of the target \
+theorem. You judge what Lean cannot: whether the target theorem and the \
+definitions it depends on state the source result faithfully, and whether the \
+proof establishes it by legitimate means.
+
+{LEAN_ENV_NOTE}
+
+Principles:
+1. Read the whole setting. Every standing assumption of the source is part of \
+the statement or the definitions; nothing the source proves is a hypothesis.
+2. Compare hypotheses and conclusions in both directions; quantification is \
+over exactly the source's objects.
+3. Evaluate definitions at edge inputs. A statement that holds vacuously, or \
+because a definition is degenerate (an empty relation set, a trivial group, \
+a predicate that is always false), is unfaithful even though it is proved.
+4. A parameter or hypothesis that replaces a concrete object of the source \
+(for example, a sequence given by a formula) is acceptable only if the \
+theorem then implies the source's statement; say exactly what must be \
+supplied to recover it.
+5. Report what you checked and what you found; do not speculate beyond the \
+code. Be precise and brief."""
+
+WRITER_SYSTEM = f"""You write the mathematical exposition of machine-checked \
+proofs for research mathematicians. You state exactly what the formal code \
+states, in standard notation, and give each proof at the level of a careful \
+paper proof. You never claim more than the code establishes, and you write \
+LaTeX that compiles with pdfLaTeX.
+
+{LEAN_ENV_NOTE}"""
+
+FINAL_REVIEW_TEMPLATE = """Referee the formal proof below against its source.
+
+<informal_statement>
+{informal_statement}
+</informal_statement>
+
+<informal_proof>
+{informal_proof}
+</informal_proof>
+
+<target_statement>
+{target_statement}
+</target_statement>
+
+<lean_solution>
+{lean_solution}
+</lean_solution>
+
+Write each section in LaTeX text mode, ready to be typeset: mathematics in \
+$...$ or \\[...\\], Lean identifiers as \\leanname{{name}}, no Unicode \
+mathematical symbols, no Markdown, no other macros or packages.
+
+Reply with:
+<definitions_review>
+Each Lean definition and the source object it encodes; any discrepancy.
+</definitions_review>
+<statement_review>
+The target theorem against the source statement: hypotheses, quantifiers, \
+conclusion, edge cases; what must be supplied to recover the source's \
+statement, if anything.
+</statement_review>
+<proof_review>
+How the formal proof is organised, which step of the source proof each part \
+carries out, and where it deviates from the source proof. Note any lemma whose \
+statement is stronger or weaker than the step it represents.
+</proof_review>
+<concerns>
+An itemize list of points a mathematician should know before relying on the \
+result, or the single word None.
+</concerns>
+<verdict>FAITHFUL, UNFAITHFUL or UNCERTAIN</verdict>"""
+
+REPORT_TEMPLATE = """Write the mathematical text of a report that presents a \
+machine-checked proof to a mathematician. The reader knows the source result \
+and wants to check, without reading Lean, what was proved and how.
+
+<informal_statement>
+{informal_statement}
+</informal_statement>
+
+<informal_proof>
+{informal_proof}
+</informal_proof>
+
+<lean_solution>
+{lean_solution}
+</lean_solution>
+
+<declarations>
+{declarations}
+</declarations>
+
+The Lean code is inserted by the report generator: write \\LeanDecl{{name}} \
+where the code of a declaration listed above belongs, and never write Lean \
+code yourself. \\LeanDecl{{{theorem_name}}} inserts the target statement.
+
+Structure of <body>:
+\\section{{Statement}}: the setting and the result as in the source, in clean \
+LaTeX, with the same content.
+\\section{{Formalization}}: each definition in mathematical terms, followed by \
+its \\LeanDecl; then the target statement, \\LeanDecl{{{theorem_name}}}, and \
+how it relates to the source statement, including any parameter or \
+hypothesis that stands for an object of the source.
+\\section{{Proof}}: \\subsection{{Overview}} relating the lemmas to the steps \
+of the source proof and stating where the formal proof deviates from it; then \
+every remaining declaration in the listed order, each as
+  \\begin{{lemma}}[\\leanname{{name}}]\\label{{lem:name}} statement \\end{{lemma}}
+  \\LeanDecl{{name}}
+  \\begin{{proof}} argument \\end{{proof}}
+and finally \\subsection{{Proof of the theorem}} with \\LeanDecl{{solution}} \
+and its argument.
+
+Declarations marked "library" are verified results the proof builds on, \
+from earlier work: do not present them as lemmas. Introduce the library \
+briefly in the Formalization section (the definitions it provides) and cite \
+its theorems by name where the proof uses them; \\LeanDecl of a library \
+declaration is optional.
+
+Requirements:
+- Each lemma statement says exactly what its Lean statement says: all \
+hypotheses, quantifiers and types (for example, $s \\in \\mathbb{{C}}^\\times$ \
+for a unit), with the same strength; not the source's informal version.
+- Each proof gives the mathematical argument the Lean proof carries out, at \
+the level of a careful paper proof: which earlier lemmas (\\cref{{lem:...}}) \
+and which defining relations it uses, and the key computation. Do not \
+narrate tactics.
+- Every listed declaration appears exactly once via \\LeanDecl.
+- Use only amsmath, amssymb, mathtools, amsthm environments (theorem, lemma, \
+definition, remark, proof), itemize and enumerate, \\cref, \\leanname and \
+\\LeanDecl. Put any \\newcommand or \\DeclareMathOperator lines in <macros>. \
+No Unicode mathematical symbols; no \\usepackage, \\input or document \
+environment.
+
+Reply with:
+<title>Title of the report</title>
+<abstract>Three to five sentences: the result, its source, and what was \
+formally verified.</abstract>
+<macros>\\newcommand lines, or empty</macros>
+<body>
+The sections above.
+</body>"""
+
+REPORT_REPAIR_TEMPLATE = """The report text below does not compile with \
+pdfLaTeX. Fix the errors and return the full corrected text in the same \
+format (<title>, <abstract>, <macros>, <body>). Change nothing else.
+
+<title>{title}</title>
+<abstract>{abstract}</abstract>
+<macros>{macros}</macros>
+<body>
+{body}
+</body>
+
+<latex_errors>
+{errors}
+</latex_errors>"""
+
+REPORT_CHECK_TEMPLATE = """Below is the text of a report on a machine-checked \
+proof; each Lean declaration is shown where the report places it. Check every \
+lemma, definition and theorem statement in the text against the Lean code \
+beside it: hypotheses, quantifiers, types, and the strength of the \
+conclusion. Check that each written proof is a correct account of the \
+mathematics, cites only earlier results, and claims nothing the Lean code \
+does not establish. Check that the Statement section matches the source \
+statement and that anything attributed to the source proof is in it.
+
+<informal_statement>
+{informal_statement}
+</informal_statement>
+
+<informal_proof>
+{informal_proof}
+</informal_proof>
+
+<report>
+{report}
+</report>
+
+Reply with:
+<discrepancies>
+Each discrepancy as an item: where it is, what is wrong, and the correction. \
+Or the single word None.
+</discrepancies>"""
+
+REPORT_REVISE_TEMPLATE = """A referee compared the report text below with the \
+Lean code and found the discrepancies listed. Correct each of them and return \
+the full text in the same format (<title>, <abstract>, <macros>, <body>). \
+Change nothing else.
+
+<title>{title}</title>
+<abstract>{abstract}</abstract>
+<macros>{macros}</macros>
+<body>
+{body}
+</body>
+
+<discrepancies>
+{discrepancies}
+</discrepancies>"""

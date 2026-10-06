@@ -1,0 +1,204 @@
+{
+  "run_id": "srv_20261003_142941_000000",
+  "uuid": "JiatuBook_BoundedArithmetic_000000",
+  "slug": "fp_subset_f",
+  "config": {
+    "agents": {
+      "captain": {
+        "backend": "claude_cli",
+        "model": "claude-sonnet-5-5",
+        "timeout": 2400
+      },
+      "auditor": {
+        "backend": "claude_cli",
+        "model": "claude-sonnet-5-5"
+      },
+      "solver": {
+        "backend": "aiprover",
+        "model": "aiprover",
+        "config": "aiprover/aiprover_vista.toml",
+        "cli": "AIProver/AIProver_plugin/bin/aiprover",
+        "timeout": 1800,
+        "max_turns": 60
+      }
+    },
+    "workers": 2,
+    "max_repairs": 4,
+    "max_replans": 1,
+    "max_audit_rounds": 2,
+    "lean_parallel": 4,
+    "lean_timeout": 300,
+    "max_claude_calls": 10
+  },
+  "status": "lemmas_unproved",
+  "formalization": {
+    "definitions": "abbrev Str := List Bool\n\n/-- successor s_b appends bit b on the right -/\ndef sSucc (b : Bool) (x : Str) : Str := x ++ [b]\n\n/-- smash following the axioms x # \u03b5 = \u03b5, x # s_i(y) = x \u2218 (x # y) -/\ndef smashStr (x y : Str) : Str := (List.replicate y.length x).flatten\n\n/-- Cobham's class F, as functions (Fin n \u2192 Str) \u2192 Str. Limited recursion on notation\nwith bound |f(x,y)| \u2264 |k(x,y)|, k \u2208 F. Recursion variable y is the last argument. -/\ninductive CobhamF : (n : \u2115) \u2192 ((Fin n \u2192 Str) \u2192 Str) \u2192 Prop\n  | eps (n : \u2115) : CobhamF n (fun _ => [])\n  | succ (b : Bool) : CobhamF 1 (fun x => sSucc b (x 0))\n  | proj (n : \u2115) (i : Fin n) : CobhamF n (fun x => x i)\n  | smash : CobhamF 2 (fun x => smashStr (x 0) (x 1))\n  | comp (n m : \u2115) (h : (Fin m \u2192 Str) \u2192 Str) (g : Fin m \u2192 (Fin n \u2192 Str) \u2192 Str) :\n      CobhamF m h \u2192 (\u2200 j, CobhamF n (g j)) \u2192\n      CobhamF n (fun x => h (fun j => g j x))\n  | lrec (n : \u2115) (g : (Fin n \u2192 Str) \u2192 Str)\n      (h0 h1 : (Fin (n+2) \u2192 Str) \u2192 Str)\n      (k : (Fin (n+1) \u2192 Str) \u2192 Str)\n      (f : (Fin (n+1) \u2192 Str) \u2192 Str) :\n      CobhamF n g \u2192 CobhamF (n+2) h0 \u2192 CobhamF (n+2) h1 \u2192 CobhamF (n+1) k \u2192\n      (\u2200 x : Fin n \u2192 Str, f (Fin.snoc x []) = g x) \u2192\n      (\u2200 (x : Fin n \u2192 Str) (y : Str) (b : Bool),\n        f (Fin.snoc x (y ++ [b])) =\n          (if b then h1 else h0) (Fin.snoc (Fin.snoc x y) (f (Fin.snoc x y)))) \u2192\n      (\u2200 (x : Fin n \u2192 Str) (y : Str),\n        (f (Fin.snoc x y)).length \u2264 (k (Fin.snoc x y)).length) \u2192\n      CobhamF (n+1) f\n\n/-- Variant F': same, but limited recursion requires |h_i(x,y,z)| \u2264 |z \u2218 k_i(x,y)|\nfor some k_i in F'. -/\ninductive CobhamF' : (n : \u2115) \u2192 ((Fin n \u2192 Str) \u2192 Str) \u2192 Prop\n  | eps (n : \u2115) : CobhamF' n (fun _ => [])\n  | succ (b : Bool) : CobhamF' 1 (fun x => sSucc b (x 0))\n  | proj (n : \u2115) (i : Fin n) : CobhamF' n (fun x => x i)\n  | smash : CobhamF' 2 (fun x => smashStr (x 0) (x 1))\n  | comp (n m : \u2115) (h : (Fin m \u2192 Str) \u2192 Str) (g : Fin m \u2192 (Fin n \u2192 Str) \u2192 Str) :\n      CobhamF' m h \u2192 (\u2200 j, CobhamF' n (g j)) \u2192\n      CobhamF' n (fun x => h (fun j => g j x))\n  | lrec (n : \u2115) (g : (Fin n \u2192 Str) \u2192 Str)\n      (h0 h1 : (Fin (n+2) \u2192 Str) \u2192 Str)\n      (k0 k1 : (Fin (n+1) \u2192 Str) \u2192 Str)\n      (f : (Fin (n+1) \u2192 Str) \u2192 Str) :\n      CobhamF' n g \u2192 CobhamF' (n+2) h0 \u2192 CobhamF' (n+2) h1 \u2192\n      CobhamF' (n+1) k0 \u2192 CobhamF' (n+1) k1 \u2192\n      (\u2200 (x : Fin n \u2192 Str) (y z : Str),\n        (h0 (Fin.snoc (Fin.snoc x y) z)).length \u2264 (z ++ k0 (Fin.snoc x y)).length) \u2192\n      (\u2200 (x : Fin n \u2192 Str) (y z : Str),\n        (h1 (Fin.snoc (Fin.snoc x y) z)).length \u2264 (z ++ k1 (Fin.snoc x y)).length) \u2192\n      (\u2200 x : Fin n \u2192 Str, f (Fin.snoc x []) = g x) \u2192\n      (\u2200 (x : Fin n \u2192 Str) (y : Str) (b : Bool),\n        f (Fin.snoc x (y ++ [b])) =\n          (if b then h1 else h0) (Fin.snoc (Fin.snoc x y) (f (Fin.snoc x y)))) \u2192\n      CobhamF' (n+1) f",
+    "preamble": "",
+    "theorem_name": "fp_subset_f",
+    "signature": " (n : \u2115) (f : (Fin n \u2192 Str) \u2192 Str) (hf : CobhamF' n f) :\n    CobhamF n f ",
+    "notes": "The only fix is renaming the limited-recursion constructors from `rec` to `lrec`, since `rec` clashes with the auto-generated recursor of each inductive. Str = List Bool models {0,1}*; sSucc appends a bit; smashStr x y is x repeated |y| times, as the smash axioms give. CobhamF is Cobham's class: \u03b5, successors, projections, smash, composition, and limited recursion on notation with |f| \u2264 |k|. CobhamF' is the variant whose recursion requires |h_i(x,y,z)| \u2264 |z \u2218 k_i(x,y)| with k_i in F'. The theorem states F' \u2286 F for functions of every arity n.",
+    "readback": "**Setting.** Let $\\\\Sigma^* $ denote the finite binary strings (lists of booleans), with $\\\\varepsilon$ the empty string, $\\\\circ$ concatenation, and $|w|$ the length of $w$. Functions of arity $n$ are maps $(\\\\Sigma^*)^n \\\\to \\\\Sigma^*$ (for $n=0$ this is a single constant string). Write $s_b(x) = x \\\\circ [b]$ (append bit $b$ on the right), and $x \\\\# y$ for the smash, defined as $x$ concatenated with itself $|y|$ times (so $x \\\\# y = \\\\varepsilon$ when $y=\\\\varepsilon$, and $|x\\\\#y| = |x|\\\\cdot|y|$).\n\n**The class $F$ (inductive predicate `CobhamF`).** For each arity $n$, $F$ is the smallest family of $n$-ary functions closed under the following clauses:\n\n1. For every $n$, the constant function with value $\\\\varepsilon$ is in $F$ (arity $n$, including $n=0$).\n2. For each bit $b$, the unary function $x \\\\mapsto s_b(x)$ is in $F$.\n3. For every $n$ and every $i<n$, the projection $(x_0,\\\\dots,x_{n-1}) \\\\mapsto x_i$ is in $F$.\n4. The binary function $(x,y) \\\\mapsto x \\\\# y$ is in $F$.\n5. (Composition) If $h$ is $m$-ary in $F$ and $g_0,\\\\dots,g_{m-1}$ are $n$-ary functions in $F$, then $x \\\\mapsto h(g_0(x),\\\\dots,g_{m-1}(x))$ is in $F$ (here $m$ may be $0$).\n6. (Limited recursion on notation) Suppose $g$ is $n$-ary in $F$, $h_0,h_1$ are $(n+2)$-ary in $F$, $k$ is $(n+1)$-ary in $F$, and $f$ is an $(n+1)$-ary function (the recursion variable being the last argument) satisfying:\n   - $f(\\\\vec x, \\\\varepsilon) = g(\\\\vec x)$ for all $\\\\vec x$;\n   - for all $\\\\vec x$, all strings $y$, and each bit $b$: $f(\\\\vec x, y\\\\circ[b]) = h_b(\\\\vec x, y, f(\\\\vec x, y))$ (so $h_1$ is used when $b$ is true and $h_0$ when $b$ is false);\n   - for all $\\\\vec x, y$: $|f(\\\\vec x, y)| \\\\le |k(\\\\vec x, y)|$.\n\n   Then $f$ is in $F$.\n\n**The class $F'$ (inductive predicate `CobhamF'`).** It has the same clauses 1\u20135 (with $F'$ in place of $F$). The recursion clause 6\u2032 differs: given $g\\\\in F'$ ($n$-ary), $h_0,h_1 \\\\in F'$ ($(n+2)$-ary), and **two** $(n+1)$-ary functions $k_0,k_1\\\\in F'$, and an $(n+1)$-ary $f$ satisfying the same base equation $f(\\\\vec x,\\\\varepsilon)=g(\\\\vec x)$ and the same recursion equations $f(\\\\vec x, y\\\\circ[b]) = h_b(\\\\vec x,y,f(\\\\vec x,y))$, and in addition the bounds\n$$|h_0(\\\\vec x, y, z)| \\\\le |z \\\\circ k_0(\\\\vec x, y)|, \\\\qquad |h_1(\\\\vec x, y, z)| \\\\le |z \\\\circ k_1(\\\\vec x, y)|$$\nfor **all** strings $\\\\vec x, y, z$ (not only for $z$ arising as a value of $f$), then $f\\\\in F'$. There is no direct requirement in 6\u2032 that $|f|$ be bounded by the length of any function in $F'$.\n\n**The statement.** For every natural number $n$ (including $n=0$) and every $n$-ary function $f:(\\\\Sigma^*)^n\\\\to\\\\Sigma^*$, if $f$ belongs to $F'$ then $f$ belongs to $F$. In other words, $F'\\\\subseteq F$ arity by arity. The only hypothesis is membership in $F'$; no further assumptions are made on $f$. (The proof is omitted here: the Lean code has `sorry`.)",
+    "verdict": "FAITHFUL",
+    "issues": "None. The Lean encoding matches the source on the points checked.\n\n- **Class F.** `CobhamF` has the base functions (\u03b5, s_0, s_1, projections, smash), composition, and limited recursion on notation with the bound |f| \u2264 |k|, where k \u2208 F. The recursion equations use the right-append successor, the recursion variable is the last argument, and h_1 is used for bit true and h_0 for bit false.\n- **Smash.** `smashStr` repeats x exactly |y| times. This satisfies x#\u03b5 = \u03b5 and x#s_i(y) = x\u2218(x#y).\n- **Class F'.** `CobhamF'` has the same base functions and composition. Its recursion clause replaces the bound with |h_i(x,y,z)| \u2264 |z \u2218 k_i(x,y)|, with k_0 and k_1 in F'. The bound is universal over all z, which matches the source's inequality for the functions h_i.\n- **Statement.** For every arity n, membership in F' implies membership in F. This is the inclusion F' \u2286 F, with no extra or missing hypotheses.\n- **Edge cases.** The cases n = 0 and m = 0 are handled uniformly through `Fin 0`. The statement is not vacuous, and it is true by the source's length-bound argument together with Cobham's theorem.\n- **Minor note.** The source proof writes k_i(x,y,z), while the lemma statement and the Lean code use k_i(x,y). The Lean code follows the lemma statement, which is the correct choice."
+  },
+  "sketch": {
+    "main_proof": "induction hf with\n| eps n => exact CobhamF.eps n\n| succ b => exact CobhamF.succ b\n| proj n i => exact CobhamF.proj n i\n| smash => exact CobhamF.smash\n| comp n m h g _ _ ih1 ih2 => exact CobhamF.comp n m h g ih1 ih2\n| lrec n g h0 h1 k0 k1 f _ _ _ _ _ hb0 hb1 hg hrec ihg ih0 ih1 ihk0 ihk1 =>\n  obtain \u27e8N, hN\u27e9 := lrec_length_poly n g h0 h1 k0 k1 f ihg ihk0 ihk1 hb0 hb1 hg hrec\n  obtain \u27e8K, hK, hKl\u27e9 := cobhamF_dominating (n+1) N\n  exact CobhamF.lrec n g h0 h1 K f ihg ih0 ih1 hK hg hrec\n    (fun x y => le_trans (hN x y) (hKl (Fin.snoc x y)))",
+    "lemmas": [
+      {
+        "name": "smashStr_length",
+        "statement": "theorem smashStr_length (x y : Str) : (smashStr x y).length = x.length * y.length",
+        "helpers": "",
+        "proof": "  unfold smashStr\n  rw [List.length_flatten]\n  simp [List.map_replicate, List.sum_replicate]\n  ring",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "sum_snoc_length",
+        "statement": "theorem sum_snoc_length (n : \u2115) (x : Fin n \u2192 Str) (y : Str) :\n    \u2211 i : Fin (n+1), ((Fin.snoc x y : Fin (n+1) \u2192 Str) i).length\n      = (\u2211 i, (x i).length) + y.length",
+        "helpers": "",
+        "proof": "  rw [Fin.sum_univ_castSucc]\n  simp [Fin.snoc]",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "poly_eps",
+        "statement": "theorem poly_eps (n : \u2115) :\n    \u2203 c d : \u2115, \u2200 x : Fin n \u2192 Str,\n      (([] : Str)).length \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d",
+        "helpers": "",
+        "proof": "  refine \u27e81, 0, \u03bb _ => ?_\u27e9\n  simp",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "poly_succ",
+        "statement": "theorem poly_succ (b : Bool) :\n    \u2203 c d : \u2115, \u2200 x : Fin 1 \u2192 Str,\n      (sSucc b (x 0)).length \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d",
+        "helpers": "",
+        "proof": "  refine \u27e81, 1, ?_\u27e9\n  intro x\n  have h_sum : (\u2211 i : Fin 1, (x i).length) = (x 0).length := by\n    simp\n  calc\n    (sSucc b (x 0)).length = (x 0 ++ [b]).length := rfl\n    _ = (x 0).length + [b].length := by simp\n    _ = (x 0).length + 1 := by simp\n    _ = 1 * ((x 0).length + 1) ^ 1 := by simp\n    _ = 1 * ((\u2211 i : Fin 1, (x i).length) + 1) ^ 1 := by rw [h_sum]\n    _ \u2264 1 * ((\u2211 i : Fin 1, (x i).length) + 1) ^ 1 := le_rfl",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "poly_proj",
+        "statement": "theorem poly_proj (n : \u2115) (i : Fin n) :\n    \u2203 c d : \u2115, \u2200 x : Fin n \u2192 Str,\n      (x i).length \u2264 c * ((\u2211 j, (x j).length) + 1) ^ d",
+        "helpers": "",
+        "proof": "  refine \u27e81, 1, ?_\u27e9\n  intro x\n  have hle : (x i).length \u2264 \u2211 j : Fin n, (x j).length := by\n    have := Finset.single_le_sum (f := fun j : Fin n => (x j).length)\n      (hf := by intro j hj; exact Nat.zero_le _) (h := Finset.mem_univ i)\n    simpa using this\n  calc\n    (x i).length \u2264 \u2211 j : Fin n, (x j).length := hle\n    _ \u2264 (\u2211 j : Fin n, (x j).length) + 1 := by omega\n    _ = 1 * ((\u2211 j : Fin n, (x j).length) + 1) ^ 1 := by simp\n    _ \u2264 1 * ((\u2211 j, (x j).length) + 1) ^ 1 := by rfl",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "poly_smash",
+        "statement": "theorem poly_smash :\n    \u2203 c d : \u2115, \u2200 x : Fin 2 \u2192 Str,\n      (smashStr (x 0) (x 1)).length \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d",
+        "helpers": "",
+        "proof": "  refine \u27e81, 2, ?_\u27e9\n  intro x\n  rw [smashStr_length]\n  have hsum : (\u2211 i : Fin 2, (x i).length) = (x 0).length + (x 1).length := by\n    simp [Fin.sum_univ_two]\n  rw [hsum]\n  have hsq : (x 0).length * (x 1).length \u2264 ((x 0).length + (x 1).length) ^ 2 := by\n    nlinarith\n  have hsq' : ((x 0).length + (x 1).length) ^ 2 \u2264 ((x 0).length + (x 1).length + 1) ^ 2 := by\n    have hle : (x 0).length + (x 1).length \u2264 (x 0).length + (x 1).length + 1 := by omega\n    nlinarith\n  calc\n    (x 0).length * (x 1).length \u2264 ((x 0).length + (x 1).length) ^ 2 := hsq\n    _ \u2264 ((x 0).length + (x 1).length + 1) ^ 2 := hsq'\n    _ = 1 * ((x 0).length + (x 1).length + 1) ^ 2 := by simp",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "poly_comp_sum",
+        "statement": "theorem poly_comp_sum (n m : \u2115) (g : Fin m \u2192 (Fin n \u2192 Str) \u2192 Str)\n    (hg : \u2200 j, \u2203 c d : \u2115, \u2200 x : Fin n \u2192 Str,\n      (g j x).length \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d) :\n    \u2203 c d : \u2115, \u2200 x : Fin n \u2192 Str,\n      (\u2211 j, (g j x).length) \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d",
+        "helpers": "",
+        "proof": "  \n  have h_exists : \u2200 j, \u2203 p : \u2115 \u00d7 \u2115, \u2200 x, (g j x).length \u2264 p.1 * ((\u2211 i, (x i).length) + 1) ^ p.2 := by\n    intro j\n    rcases hg j with \u27e8c, d, h\u27e9\n    exact \u27e8(c, d), h\u27e9\n  let f : Fin m \u2192 \u2115 \u00d7 \u2115 := fun j => (h_exists j).choose\n  have hf : \u2200 j x, (g j x).length \u2264 (f j).1 * ((\u2211 i, (x i).length) + 1) ^ (f j).2 := by\n    intro j x\n    exact ((h_exists j).choose_spec x)\n  let c : Fin m \u2192 \u2115 := fun j => (f j).1\n  let d : Fin m \u2192 \u2115 := fun j => (f j).2\n  have hc : \u2200 j x, (g j x).length \u2264 c j * ((\u2211 i, (x i).length) + 1) ^ (d j) := by\n    intro j x\n    simpa [c, d] using hf j x\n  let C := \u2211 j : Fin m, c j\n  let D := Finset.sup (Finset.univ : Finset (Fin m)) d\n  refine \u27e8C, D, ?_\u27e9\n  intro x\n  have hpos : 0 < (\u2211 i, (x i).length) + 1 := by\n    have hsum : 0 \u2264 \u2211 i, (x i).length :=\n      Finset.sum_nonneg (fun i _ => Nat.zero_le _)\n    omega\n  calc\n    (\u2211 j, (g j x).length) \u2264 (\u2211 j, c j * ((\u2211 i, (x i).length) + 1) ^ (d j)) := by\n      apply Finset.sum_le_sum\n      intro j _\n      apply hc j x\n    _ \u2264 (\u2211 j, c j * ((\u2211 i, (x i).length) + 1) ^ D) := by\n      apply Finset.sum_le_sum\n      intro j _\n      have hd_le_D : d j \u2264 D := Finset.le_sup (Finset.mem_univ j)\n      have h_pow : ((\u2211 i, (x i).length) + 1) ^ (d j) \u2264 ((\u2211 i, (x i).length) + 1) ^ D :=\n        Nat.pow_le_pow_right hpos hd_le_D\n      exact Nat.mul_le_mul_left (c j) h_pow\n    _ = (\u2211 j, c j) * ((\u2211 i, (x i).length) + 1) ^ D := by\n      rw [\u2190 Finset.sum_mul]\n    _ = C * ((\u2211 i, (x i).length) + 1) ^ D := rfl",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "poly_comp",
+        "statement": "theorem poly_comp (n m : \u2115) (h : (Fin m \u2192 Str) \u2192 Str) (g : Fin m \u2192 (Fin n \u2192 Str) \u2192 Str)\n    (hh : \u2203 c d : \u2115, \u2200 y : Fin m \u2192 Str,\n      (h y).length \u2264 c * ((\u2211 i, (y i).length) + 1) ^ d)\n    (hg : \u2200 j, \u2203 c d : \u2115, \u2200 x : Fin n \u2192 Str,\n      (g j x).length \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d) :\n    \u2203 c d : \u2115, \u2200 x : Fin n \u2192 Str,\n      (h (fun j => g j x)).length \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 0 (error): forbidden construct: sorry\n\nsample 1 (error): forbidden construct: sorry"
+      },
+      {
+        "name": "poly_lrec",
+        "statement": "theorem poly_lrec (n : \u2115) (k f : (Fin (n+1) \u2192 Str) \u2192 Str)\n    (hk : \u2203 c d : \u2115, \u2200 x : Fin (n+1) \u2192 Str,\n      (k x).length \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d)\n    (hlen : \u2200 (x : Fin n \u2192 Str) (y : Str),\n        (f (Fin.snoc x y)).length \u2264 (k (Fin.snoc x y)).length) :\n    \u2203 c d : \u2115, \u2200 x : Fin (n+1) \u2192 Str,\n      (f x).length \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d",
+        "helpers": "",
+        "proof": "  rcases hk with \u27e8c, d, hk\u27e9\n  refine \u27e8c, d, \u03bb x => ?_\u27e9\n  have hx_snoc : Fin.snoc (x \u2218 Fin.castSucc) (x (Fin.last n)) = x := by\n    ext i\n    refine Fin.lastCases ?_ (\u03bb i => ?_) i\n    \u00b7 simp\n    \u00b7 simp\n  have h_bound := hlen (x \u2218 Fin.castSucc) (x (Fin.last n))\n  have := calc\n    (f x).length = (f (Fin.snoc (x \u2218 Fin.castSucc) (x (Fin.last n)))).length := by\n      simp [hx_snoc]\n    _ \u2264 (k (Fin.snoc (x \u2218 Fin.castSucc) (x (Fin.last n)))).length := h_bound\n    _ = (k x).length := by simp [hx_snoc]\n    _ \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d := hk x\n  exact this",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "cobhamF_poly_bound",
+        "statement": "theorem cobhamF_poly_bound (n : \u2115) (h : (Fin n \u2192 Str) \u2192 Str) (hh : CobhamF n h) :\n    \u2203 c d : \u2115, \u2200 x : Fin n \u2192 Str,\n      (h x).length \u2264 c * ((\u2211 i, (x i).length) + 1) ^ d := by\n  induction hh with\n  | eps n => exact poly_eps n\n  | succ b => exact poly_succ b\n  | proj n i => exact poly_proj n i\n  | smash => exact poly_smash\n  | comp n m h g _ _ ih1 ih2 => exact poly_comp n m h g ih1 ih2\n  | lrec n g h0 h1 k f _ _ _ _ hg hrec hlen ihg ih0 ih1 ihk =>\n    exact poly_lrec n k f ihk hlen\n\ntheorem cobhamF_append : CobhamF 2 (fun x => x 0 ++ x 1)",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 0 (sorry): forbidden construct: sorry\n\nsample 1 (sorry): /home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0019_cobhamF_poly_bound_aiprover_s1.lean:120:12: error(lean.unknownIdentifier): Unknown identifier `hh`\n\n/home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0019_cobhamF_poly_bound_aiprover_s1.lean:120:2: error: Tactic `induction` failed: major premise type is not an inductive type\n  ?m.13\n\nExplanation: the 'induction' tactic is for constructor-based reasoning as well as for applying custom induction principles with a 'using' clause or a registered '@[induction_eliminator]' theorem. The above type neither is an inductive type nor has a registered theorem.\n\nx\u271d : ?m.13\n\u22a2 CobhamF 2 fun x => x 0 ++ x 1"
+      },
+      {
+        "name": "cobhamF_sum_concat",
+        "statement": "theorem cobhamF_sum_concat (n : \u2115) :\n    \u2203 L : (Fin n \u2192 Str) \u2192 Str, CobhamF n L \u2227\n      \u2200 x : Fin n \u2192 Str, (L x).length = (\u2211 i, (x i).length) + 1",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 1 (error): forbidden construct: sorry\n\nsample 0 (empty): no proof of `cobhamF_sum_concat` in the answer"
+      },
+      {
+        "name": "cobhamF_pow",
+        "statement": "theorem cobhamF_pow (n d : \u2115) :\n    \u2203 P : (Fin n \u2192 Str) \u2192 Str, CobhamF n P \u2227\n      \u2200 x : Fin n \u2192 Str, (P x).length = ((\u2211 i, (x i).length) + 1) ^ d",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 0 (error): /home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0018_cobhamF_pow_aiprover_s0.lean:133:30: error: Application type mismatch: The argument\n  sSucc true\nhas type\n  Str \u2192 Str\nbut is expected to have type\n  (Fin 1 \u2192 Str) \u2192 Str\nin the application\n  CobhamF 1 (sSucc true)\n\n/home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0018_cobhamF_pow_aiprover_s0.lean:140:38: error: Application type mismatch: The argument\n  sSucc true\nhas type\n  Str \u2192 Str\nbut is expected to have type\n  (Fin 1 \u2192 Str) \u2192 Str\nin the application\n  CobhamF.comp n 1 (sSucc true)\n\nsample 1 (empty): no proof of `cobhamF_pow` in the answer"
+      },
+      {
+        "name": "cobhamF_mul_const",
+        "statement": "theorem cobhamF_mul_const (n m : \u2115) (p : (Fin n \u2192 Str) \u2192 Str) (hp : CobhamF n p) :\n    \u2203 K : (Fin n \u2192 Str) \u2192 Str, CobhamF n K \u2227\n      \u2200 x : Fin n \u2192 Str, (K x).length = m * (p x).length",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 1 (sorry): forbidden construct: sorry\n\nsample 0 (empty): no proof of `cobhamF_mul_const` in the answer"
+      },
+      {
+        "name": "cobhamF_dominating",
+        "statement": "theorem cobhamF_dominating (n N : \u2115) :\n    \u2203 K : (Fin n \u2192 Str) \u2192 Str, CobhamF n K \u2227\n      \u2200 x : Fin n \u2192 Str, N * ((\u2211 i, (x i).length) + 1) ^ N \u2264 (K x).length",
+        "helpers": "",
+        "proof": "  have hp := cobhamF_pow n N\n  rcases hp with \u27e8P, hP_cobham, hP_len\u27e9\n  have hK := cobhamF_mul_const n N P hP_cobham\n  rcases hK with \u27e8K, hK_cobham, hK_len\u27e9\n  refine \u27e8K, hK_cobham, ?_\u27e9\n  intro x\n  rw [hK_len x, hP_len x]",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "lrec_length_step",
+        "statement": "theorem lrec_length_step (n : \u2115) (g : (Fin n \u2192 Str) \u2192 Str)\n    (h0 h1 : (Fin (n+2) \u2192 Str) \u2192 Str)\n    (k0 k1 : (Fin (n+1) \u2192 Str) \u2192 Str)\n    (hb0 : \u2200 (x : Fin n \u2192 Str) (y z : Str),\n        (h0 (Fin.snoc (Fin.snoc x y) z)).length \u2264 (z ++ k0 (Fin.snoc x y)).length)\n    (hb1 : \u2200 (x : Fin n \u2192 Str) (y z : Str),\n        (h1 (Fin.snoc (Fin.snoc x y) z)).length \u2264 (z ++ k1 (Fin.snoc x y)).length)\n    (x : Fin n \u2192 Str) (y z : Str) (b : Bool) :\n    ((if b then h1 else h0) (Fin.snoc (Fin.snoc x y) z)).length\n      \u2264 z.length + max (k0 (Fin.snoc x y)).length (k1 (Fin.snoc x y)).length",
+        "helpers": "",
+        "proof": "  split\n  \u00b7 \n      have h := hb1 x y z\n      rw [List.length_append] at h\n      exact h.trans (Nat.add_le_add_left (Nat.le_max_right _ _) _)\n  \u00b7 \n      have h := hb0 x y z\n      rw [List.length_append] at h\n      exact h.trans (Nat.add_le_add_left (Nat.le_max_left _ _) _)",
+        "proved": true,
+        "last_errors": ""
+      },
+      {
+        "name": "lrec_length_bound",
+        "statement": "theorem lrec_length_bound (n : \u2115) (g : (Fin n \u2192 Str) \u2192 Str)\n    (h0 h1 : (Fin (n+2) \u2192 Str) \u2192 Str)\n    (k0 k1 : (Fin (n+1) \u2192 Str) \u2192 Str)\n    (f : (Fin (n+1) \u2192 Str) \u2192 Str)\n    (hb0 : \u2200 (x : Fin n \u2192 Str) (y z : Str),\n        (h0 (Fin.snoc (Fin.snoc x y) z)).length \u2264 (z ++ k0 (Fin.snoc x y)).length)\n    (hb1 : \u2200 (x : Fin n \u2192 Str) (y z : Str),\n        (h1 (Fin.snoc (Fin.snoc x y) z)).length \u2264 (z ++ k1 (Fin.snoc x y)).length)\n    (hg : \u2200 x : Fin n \u2192 Str, f (Fin.snoc x []) = g x)\n    (hrec : \u2200 (x : Fin n \u2192 Str) (y : Str) (b : Bool),\n        f (Fin.snoc x (y ++ [b])) =\n          (if b then h1 else h0) (Fin.snoc (Fin.snoc x y) (f (Fin.snoc x y))))\n    (x : Fin n \u2192 Str) (y : Str) (B : \u2115)\n    (hB : \u2200 y' : Str, y'.length \u2264 y.length \u2192\n        (k0 (Fin.snoc x y')).length \u2264 B \u2227 (k1 (Fin.snoc x y')).length \u2264 B) :\n    (f (Fin.snoc x y)).length \u2264 (g x).length + y.length * B",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 0 (error): /home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0020_lrec_length_bound_aiprover_s0.lean:179:8: error: Type mismatch: After simplification, term\n  htemp'\n has type\n  List.length (h1 (Fin.snoc (Fin.snoc x' y) (f (Fin.snoc x' y)))) \u2264\n    List.length (f (Fin.snoc x' y)) + List.length (k1 (Fin.snoc x' y))\nbut is expected to have type\n  List.length (h0 (Fin.snoc (Fin.snoc x' y) (f (Fin.snoc x' y)))) \u2264\n    List.length (f (Fin.snoc x' y)) + List.length (k0 (Fin.snoc x' y))\n\n/home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0020_lrec_length_bound_aiprover_s0.lean:187:8: error: Type mismatch: After simplification, term\n  htemp'\n has type\n  List.length (h0 (Fin.snoc (Fin.snoc x' y) (f (Fin.snoc x' y)))) \u2264\n    List.length (f (Fin.snoc x' y)) + List.length (k0 (Fin.snoc x' y))\nbut is expected to have type\n  List.length (h1 (Fin.snoc (Fin.snoc x' y) (f (Fin.snoc x' y)))) \u2264\n    List.length (f (Fin.snoc x' y)) + List.length (k1 (Fin.snoc x' y))\n\n/home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0020_lrec_length_bound_aiprover_s0.lean:194:48: error: Application type mismatch: The argument\n  hk0\nhas type\n  List.length (k0 (Fin.snoc x (y ++ [false]))) \u2264 B\nbut is expected to have type\n  List.length (k0 (Fin.snoc x y)) + ?m.383 \u2264 B\nin the application\n  le_trans (Nat.le_add_right (List.length (k0 (Fin.snoc x y))) ?m.383) hk0\n\n/home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0020_lrec_length_bound_aiprover_s0.lean:200:48: error: Application type mismatch: The argument\n  hk0\nhas type\n  List.length (k0 (Fin.snoc x (y ++ [true]))) \u2264 B\nbut is expected to have type\n  List.length (k1 (Fin.snoc x y)) + ?m.446 \u2264 B\nin the application\n  le_trans (Nat.le_add_right (List.length (k1 (Fin.snoc x y))) ?m.446) hk0\n\n/home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0020_lrec_length_bound_aiprover_s0.lean:202:22: error: Application type mismatch: The argument\n  y\nhas type\n  List Bool\nof sort `Type` but is expected to have type\n  \u2200 (y' : Str), List.length y' \u2264 y.length \u2192 List.length (k0 (Fin.snoc x y')) \u2264 B \u2227 List.length (k1 (Fin.snoc x y')) \u2264 B\nof sort `Prop` in the application\n  ih x y\n\nsample 1 (error): /home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0021_lrec_length_bound_aiprover_s1.lean:177:6: error: Type mismatch: After simplification, term\n  hrec x y b\n has type\n  f (Fin.snoc x (y ++ [b])) = (if b = true then h1 else h0) (Fin.snoc (Fin.snoc x y) (f (Fin.snoc x y)))\nbut is expected to have type\n  f (Fin.snoc x (b :: y)) = (if b = true then h1 else h0) (Fin.snoc (Fin.snoc x y) (f (Fin.snoc x y)))\n\n/home/loganluna/workspace/aiprover_prove2me_workspace/temp/srv_20261003_142941_000000/0021_lrec_length_bound_aiprover_s1.lean:198:10: error: omega could not prove the goal:\na possible counterexample may satisfy the constraints\n  l \u2265 0\n  k \u2265 0\n  j \u2265 0\n  j"
+      },
+      {
+        "name": "lrec_length_poly",
+        "statement": "theorem lrec_length_poly (n : \u2115) (g : (Fin n \u2192 Str) \u2192 Str)\n    (h0 h1 : (Fin (n+2) \u2192 Str) \u2192 Str)\n    (k0 k1 : (Fin (n+1) \u2192 Str) \u2192 Str)\n    (f : (Fin (n+1) \u2192 Str) \u2192 Str)\n    (hg' : CobhamF n g) (hk0 : CobhamF (n+1) k0) (hk1 : CobhamF (n+1) k1)\n    (hb0 : \u2200 (x : Fin n \u2192 Str) (y z : Str),\n        (h0 (Fin.snoc (Fin.snoc x y) z)).length \u2264 (z ++ k0 (Fin.snoc x y)).length)\n    (hb1 : \u2200 (x : Fin n \u2192 Str) (y z : Str),\n        (h1 (Fin.snoc (Fin.snoc x y) z)).length \u2264 (z ++ k1 (Fin.snoc x y)).length)\n    (hg : \u2200 x : Fin n \u2192 Str, f (Fin.snoc x []) = g x)\n    (hrec : \u2200 (x : Fin n \u2192 Str) (y : Str) (b : Bool),\n        f (Fin.snoc x (y ++ [b])) =\n          (if b then h1 else h0) (Fin.snoc (Fin.snoc x y) (f (Fin.snoc x y)))) :\n    \u2203 N : \u2115, \u2200 (x : Fin n \u2192 Str) (y : Str),\n      (f (Fin.snoc x y)).length \u2264\n        N * ((\u2211 i : Fin (n+1), ((Fin.snoc x y : Fin (n+1) \u2192 Str) i).length) + 1) ^ N",
+        "helpers": "",
+        "proof": "",
+        "proved": false,
+        "last_errors": "sample 0 (sorry): forbidden construct: sorry\n\nsample 1 (error): forbidden construct: sorry"
+      }
+    ]
+  },
+  "wall_seconds": 16444.1,
+  "phase_seconds": {
+    "formalize": 82.1,
+    "sketch": 142.4,
+    "prove": 16228.2
+  },
+  "calls_by_role": {
+    "captain": 6,
+    "auditor": 1,
+    "solver": 43
+  },
+  "usage_by_model": {
+    "claude-sonnet-5-5": {
+      "input_tokens": 14,
+      "output_tokens": 28010,
+      "cost_usd": 0.446132
+    }
+  },
+  "lean_attempt_files": 21
+}
